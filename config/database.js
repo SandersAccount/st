@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
 
 dotenv.config();
 
@@ -11,16 +10,7 @@ const connectDB = async () => {
             socketTimeoutMS: 45000,
             maxPoolSize: 50,
             minPoolSize: 0,
-            family: 4,
-            tls: true,
-            tlsCAFile: `${process.cwd()}/node_modules/mongodb/lib/certs/ca.pem`,
-            tlsAllowInvalidHostnames: false,
-            tlsInsecure: false,
-            serverApi: {
-                version: '1',
-                strict: true,
-                deprecationErrors: true
-            }
+            family: 4
         };
 
         const uri = process.env.MONGODB_URI;
@@ -28,16 +18,14 @@ const connectDB = async () => {
             throw new Error('MONGODB_URI is not defined in environment variables');
         }
 
-        console.log('Testing connection with MongoClient...');
-        const client = new MongoClient(uri, options);
-        await client.connect();
-        await client.db('admin').command({ ping: 1 });
-        await client.close();
-        console.log('MongoClient connection test successful');
-
-        console.log('Attempting to connect with Mongoose...');
+        console.log('Attempting to connect to MongoDB...');
         await mongoose.connect(uri, options);
         console.log('Connected to MongoDB successfully');
+
+        // Test the connection
+        const adminDb = mongoose.connection.db.admin();
+        await adminDb.ping();
+        console.log('MongoDB ping successful');
     } catch (error) {
         console.error('MongoDB connection error:', error);
         
