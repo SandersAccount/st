@@ -55,4 +55,4 @@ process.on('SIGINT', async () => {
 
 connectDB();
 
-export default connectDB;
+export { connectDB, mongoose as default };

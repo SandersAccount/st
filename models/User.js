@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import mongoose from '../config/database.js';
+import mongoose from 'mongoose';
 
 const creditRequestSchema = new mongoose.Schema({
     userId: {
@@ -19,88 +19,39 @@ const creditRequestSchema = new mongoose.Schema({
     requestedAt: {
         type: Date,
         default: Date.now
-    },
-    approvedAt: Date,
-    approvedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }
-});
-
-const creditHistorySchema = new mongoose.Schema({
-    type: {
-        type: String,
-        enum: ['add', 'use'],
-        required: true
-    },
-    amount: {
-        type: Number,
-        required: true
-    },
-    details: {
-        type: String,
-        required: true
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now
     }
 });
 
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true,
-        trim: true
+        required: true
     },
     email: {
         type: String,
         required: true,
-        unique: true,
-        trim: true,
-        lowercase: true
+        unique: true
     },
     password: {
         type: String,
         required: true
-    },
-    nickname: {
-        type: String,
-        trim: true
-    },
-    bio: {
-        type: String,
-        trim: true
-    },
-    credits: {
-        type: Number,
-        default: 100,  // Initial credits for new users
-        min: 0  // Prevent negative credits
-    },
-    creditHistory: [creditHistorySchema],
-    creditRequests: [creditRequestSchema],
-    subscription: {
-        plan: {
-            type: String,
-            enum: ['free', 'pro', 'enterprise'],
-            default: 'free'
-        },
-        status: {
-            type: String,
-            enum: ['active', 'inactive', 'cancelled'],
-            default: 'active'
-        },
-        startDate: Date,
-        endDate: Date
     },
     role: {
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
     },
+    credits: {
+        type: Number,
+        default: 0
+    },
+    creditRequests: [creditRequestSchema],
     createdAt: {
         type: Date,
         default: Date.now
+    },
+    lastLogin: {
+        type: Date
     }
 });
 
@@ -126,7 +77,7 @@ userSchema.methods.comparePassword = async function(password) {
 let User;
 try {
     User = mongoose.model('User');
-} catch (error) {
+} catch {
     User = mongoose.model('User', userSchema);
 }
 
