@@ -28,57 +28,98 @@ export class CollectionModal extends HTMLElement {
                 margin: 15% auto;
                 padding: 20px;
                 border-radius: 8px;
-                width: 80%;
+                width: 90%;
                 max-width: 500px;
-                position: relative;
+                color: white;
+            }
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #333;
+            }
+
+            .modal-header h2 {
+                margin: 0;
+                color: white;
+                font-size: 1.5rem;
+                font-weight: 500;
+            }
+
+            .close-modal {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
             }
 
             .collections-list {
+                margin-bottom: 20px;
                 max-height: 300px;
                 overflow-y: auto;
-                margin: 20px 0;
             }
 
             .collection-item {
-                padding: 10px;
-                margin: 5px 0;
-                background: #2a2a2a;
-                border-radius: 4px;
+                background-color: #2a2a2a;
+                border-radius: 6px;
+                padding: 12px;
+                margin-bottom: 8px;
                 cursor: pointer;
-                transition: background-color 0.3s;
+                transition: background-color 0.2s;
             }
 
             .collection-item:hover {
-                background: #3a3a3a;
+                background-color: #333;
             }
 
-            .collection-title {
-                font-weight: bold;
-            }
-
-            .collection-count {
-                float: right;
-                color: #888;
-            }
-
-            .new-collection-button {
-                display: inline-flex;
+            .collection-content {
+                display: flex;
+                justify-content: space-between;
                 align-items: center;
-                padding: 8px 16px;
-                background: #2196F3;
-                border: none;
-                border-radius: 4px;
+            }
+
+            .collection-name {
                 color: white;
-                cursor: pointer;
-                transition: background-color 0.3s;
+                font-size: 1rem;
+                font-weight: 500;
+                margin: 0;
             }
 
-            .new-collection-button:hover {
-                background: #1976D2;
+            .image-count {
+                color: #888;
+                font-size: 0.9rem;
             }
 
-            .new-collection-button svg {
-                margin-right: 8px;
+            .collection-item.create-new {
+                background-color: transparent;
+                border: 2px dashed #4a5568;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .collection-item.create-new:hover {
+                border-color: #4CAF50;
+            }
+
+            .collection-item.create-new i {
+                color: #4CAF50;
+            }
+
+            .collection-item.create-new span {
+                color: #4CAF50;
+                font-size: 1rem;
+            }
+
+            .divider {
+                text-align: center;
+                margin: 20px 0;
+                color: #666;
             }
         `;
 
@@ -86,100 +127,229 @@ export class CollectionModal extends HTMLElement {
             <style>${style}</style>
             <div class="modal">
                 <div class="modal-content">
-                    <h3>Save to Collection</h3>
-                    <div class="collections-list"></div>
-                    <div class="new-collection-option">
-                        <button class="new-collection-button">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                            Create New Collection
-                        </button>
+                    <div class="modal-header">
+                        <h2>Add to Collection</h2>
+                        <button class="close-modal">&times;</button>
+                    </div>
+                    <div class="collections-list">
+                        <!-- Collections will be loaded here -->
                     </div>
                 </div>
             </div>
         `;
 
-        this.setupEventListeners();
+        // Close on overlay click
+        this.shadowRoot.querySelector('.close-modal').addEventListener('click', () => {
+            this.hide();
+        });
     }
 
-    setupEventListeners() {
-        const modal = this.shadowRoot.querySelector('.modal');
-        const newCollectionButton = this.shadowRoot.querySelector('.new-collection-button');
+    static get observedAttributes() {
+        return ['exclude-collection'];
+    }
 
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.hide();
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'exclude-collection' && oldValue !== newValue) {
+            this._excludeCollectionId = newValue;
+            // Refresh collections list if modal is open
+            if (this.isVisible) {
+                this.fetchCollections();
             }
-        });
-
-        newCollectionButton.addEventListener('click', () => {
-            this.showNewCollectionDialog();
-        });
+        }
     }
 
     async fetchCollections() {
         try {
-            const response = await fetch('/api/collections');
+            const response = await fetch('/api/collections', {
+                credentials: 'include'  // Add this to include auth cookies
+            });
             if (!response.ok) throw new Error('Failed to fetch collections');
-            this.collections = await response.json();
+            let collections = await response.json();
+            console.log('Fetched collections:', collections); // Debug log
+            
+            // Filter out the excluded collection if one is set
+            if (this._excludeCollectionId) {
+                collections = collections.filter(c => c._id !== this._excludeCollectionId);
+            }
+
+            this.collections = collections;
+            console.log('Processed collections:', this.collections);
             this.renderCollections();
         } catch (error) {
             console.error('Error fetching collections:', error);
             const toast = document.createElement('toast-notification');
             document.body.appendChild(toast);
-            toast.show('Failed to load collections', 'error');
+            toast.show('Failed to load collections', 'error', 3000);
         }
     }
 
     renderCollections() {
-        const list = this.shadowRoot.querySelector('.collections-list');
-        list.innerHTML = '';
+        const listElement = this.shadowRoot.querySelector('.collections-list');
+        if (!listElement) return;
 
-        this.collections.forEach(collection => {
-            if (collection._id === this._excludeCollectionId) return;
+        // Clear existing content
+        listElement.innerHTML = '';
 
-            const item = document.createElement('div');
-            item.className = 'collection-item';
-            item.innerHTML = `
-                <span class="collection-title">${collection.title}</span>
-                <span class="collection-count">${collection.images?.length || 0} images</span>
+        if (this.collections.length === 0) {
+            // If no collections, just show the create new button
+            listElement.innerHTML = `
+                <div class="collection-item create-new">
+                    <i class="fas fa-plus"></i>
+                    <span>Create New Collection</span>
+                </div>
             `;
+            
+            // Add click handler
+            const createNewBtn = listElement.querySelector('.create-new');
+            if (createNewBtn) {
+                createNewBtn.addEventListener('click', () => this.showNewCollectionDialog());
+            }
+        } else {
+            // Create the HTML for all collections
+            this.collections.forEach(collection => {
+                const collectionItem = document.createElement('div');
+                collectionItem.className = 'collection-item';
+                
+                collectionItem.innerHTML = `
+                    <div class="collection-content">
+                        <div class="collection-name">${collection.title || 'Untitled Collection'}</div>
+                        <div class="image-count">${collection.stats?.imageCount || 0} images</div>
+                    </div>
+                `;
 
-            item.addEventListener('click', () => this.addToCollection(collection._id));
-            list.appendChild(item);
-        });
+                collectionItem.addEventListener('click', () => {
+                    this.addToCollection(collection._id);
+                });
+
+                listElement.appendChild(collectionItem);
+            });
+
+            // Add the create new button at the end
+            const createNewBtn = document.createElement('div');
+            createNewBtn.className = 'collection-item create-new';
+            createNewBtn.innerHTML = `
+                <i class="fas fa-plus"></i>
+                <span>Create New Collection</span>
+            `;
+            createNewBtn.addEventListener('click', () => this.showNewCollectionDialog());
+            listElement.appendChild(createNewBtn);
+        }
+    }
+
+    async show() {
+        console.log('Showing modal'); // Debug log
+        if (!this.imageData) return; // Don't show if no image data
+        this.isVisible = true;
+        const modal = this.shadowRoot.querySelector('.modal');
+        if (modal) {
+            modal.style.display = 'block';
+        }
+        this.fetchCollections(); // Fetch collections when showing the modal
+    }
+
+    hide() {
+        console.log('Hiding modal'); // Debug log
+        this.isVisible = false;
+        const modal = this.shadowRoot.querySelector('.modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        // Clear the exclude collection when hiding
+        this._excludeCollectionId = null;
+        this.removeAttribute('exclude-collection');
+    }
+
+    async createNewCollection(title) {
+        try {
+            const response = await fetch('/api/collections', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ title })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create collection');
+            }
+
+            // Reload collections and show modal
+            await this.fetchCollections();
+            this.show();
+        } catch (error) {
+            console.error('Error creating collection:', error);
+            const toast = document.createElement('toast-notification');
+            document.body.appendChild(toast);
+            toast.show('Failed to create collection', 'error');
+        }
+    }
+
+    setImageData(data) {
+        if (!data || !data.imageUrl) {
+            console.error('Invalid image data:', data);
+            return;
+        }
+        this.imageData = {
+            imageUrl: data.imageUrl,
+            prompt: data.prompt || ''
+        };
     }
 
     async addToCollection(collectionId) {
         try {
+            if (!this.imageData || !this.imageData.imageUrl) {
+                throw new Error('No image data available');
+            }
+
+            const imageUrl = this.imageData.imageUrl;
+            if (imageUrl === 'undefined' || !imageUrl) {
+                throw new Error('Invalid image URL');
+            }
+
             const response = await fetch(`/api/collections/${collectionId}/images`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
-                    imageUrl: this.imageData.imageUrl,
+                    imageUrl: imageUrl,
                     prompt: this.imageData.prompt
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to add to collection');
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add image to collection');
+            }
 
+            // Hide modal and show success message
             this.hide();
+            
+            // Dispatch the event both on the element and window
+            const event = new CustomEvent('imageAddedToCollection', {
+                bubbles: true,
+                composed: true,
+                detail: { collectionId }
+            });
+            
+            // Dispatch on the element itself
+            this.dispatchEvent(event);
+            
+            // Also dispatch on window to ensure it can be caught anywhere
+            window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
+                detail: { collectionId }
+            }));
+            
             const toast = document.createElement('toast-notification');
             document.body.appendChild(toast);
-            toast.show('Image added to collection', 'success');
-
-            // Notify that image was added to collection
-            window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
-                detail: { collectionId, imageUrl: this.imageData.imageUrl }
-            }));
+            toast.show('Added to collection', 'success');
         } catch (error) {
             console.error('Error adding to collection:', error);
             const toast = document.createElement('toast-notification');
             document.body.appendChild(toast);
-            toast.show('Failed to add to collection', 'error');
+            toast.show(error.message, 'error');
         }
     }
 
@@ -189,23 +359,6 @@ export class CollectionModal extends HTMLElement {
             document.body.appendChild(newCollectionModal);
         }
         newCollectionModal.showNewCollectionDialog();
-    }
-
-    setImageData(data) {
-        this.imageData = data;
-    }
-
-    show() {
-        this.fetchCollections();
-        const modal = this.shadowRoot.querySelector('.modal');
-        modal.style.display = 'block';
-        this.isVisible = true;
-    }
-
-    hide() {
-        const modal = this.shadowRoot.querySelector('.modal');
-        modal.style.display = 'none';
-        this.isVisible = false;
     }
 }
 
@@ -238,62 +391,80 @@ class NewCollectionModal extends HTMLElement {
                 }
 
                 .modal {
-                    background: #1a1a1a;
-                    padding: 20px;
-                    border-radius: 8px;
+                    background: #1E1E1E;
+                    border-radius: 12px;
                     width: 90%;
                     max-width: 400px;
+                    padding: 20px;
                 }
 
-                h3 {
-                    margin-top: 0;
+                .modal-title {
+                    color: #fff;
+                    font-size: 1.2rem;
+                    margin: 0 0 20px;
+                }
+
+                .input-group {
+                    margin-bottom: 20px;
                 }
 
                 input {
-                    width: 100%;
-                    padding: 8px;
-                    margin: 10px 0;
+                    width: 94%;
+                    padding: 10px;
                     border: 1px solid #333;
-                    border-radius: 4px;
+                    border-radius: 6px;
                     background: #2a2a2a;
-                    color: white;
+                    color: #fff;
+                    font-size: 1rem;
                 }
 
-                .buttons {
+                input:focus {
+                    outline: none;
+                    border-color: #4CAF50;
+                }
+
+                .button-group {
                     display: flex;
-                    justify-content: flex-end;
                     gap: 10px;
-                    margin-top: 20px;
+                    justify-content: flex-end;
                 }
 
                 button {
                     padding: 8px 16px;
                     border: none;
-                    border-radius: 4px;
+                    border-radius: 6px;
+                    font-size: 0.9rem;
                     cursor: pointer;
+                    transition: background-color 0.2s;
                 }
 
-                .cancel {
-                    background: #424242;
+                .create-btn {
+                    background: #4CAF50;
                     color: white;
                 }
 
-                .create {
-                    background: #2196F3;
-                    color: white;
+                .create-btn:hover {
+                    background: #45a049;
                 }
 
-                button:hover {
-                    opacity: 0.9;
+                .cancel-btn {
+                    background: transparent;
+                    color: #999;
+                }
+
+                .cancel-btn:hover {
+                    background: rgba(255, 255, 255, 0.1);
                 }
             </style>
             <div class="overlay">
                 <div class="modal">
-                    <h3>Create New Collection</h3>
-                    <input type="text" placeholder="Collection name" />
-                    <div class="buttons">
-                        <button class="cancel">Cancel</button>
-                        <button class="create">Create</button>
+                    <h3 class="modal-title">Create New Collection</h3>
+                    <div class="input-group">
+                        <input type="text" id="collectionName" placeholder="Enter collection name">
+                    </div>
+                    <div class="button-group">
+                        <button class="cancel-btn">Cancel</button>
+                        <button class="create-btn">Create</button>
                     </div>
                 </div>
             </div>
@@ -304,36 +475,28 @@ class NewCollectionModal extends HTMLElement {
 
     setupEventListeners() {
         const overlay = this.shadowRoot.querySelector('.overlay');
-        const cancelButton = this.shadowRoot.querySelector('.cancel');
-        const createButton = this.shadowRoot.querySelector('.create');
-        const input = this.shadowRoot.querySelector('input');
+        const cancelBtn = this.shadowRoot.querySelector('.cancel-btn');
+        const createBtn = this.shadowRoot.querySelector('.create-btn');
+        const input = this.shadowRoot.querySelector('#collectionName');
 
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                this.hide();
-            }
+            if (e.target === overlay) this.hide();
         });
 
-        cancelButton.addEventListener('click', () => {
-            this.hide();
-        });
+        cancelBtn.addEventListener('click', () => this.hide());
 
-        createButton.addEventListener('click', () => {
-            this.createCollection();
-        });
+        createBtn.addEventListener('click', () => this.createCollection());
 
         input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.createCollection();
-            }
+            if (e.key === 'Enter') this.createCollection();
         });
     }
 
     async createCollection() {
-        const input = this.shadowRoot.querySelector('input');
-        const title = input.value.trim();
+        const input = this.shadowRoot.querySelector('#collectionName');
+        const name = input.value.trim();
 
-        if (!title) {
+        if (!name) {
             this.showToast('Please enter a collection name', 'error');
             return;
         }
@@ -344,20 +507,37 @@ class NewCollectionModal extends HTMLElement {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ title })
+                body: JSON.stringify({ title: name })
             });
 
             if (!response.ok) throw new Error('Failed to create collection');
 
-            this.showToast('Collection created successfully', 'success');
+            const collection = await response.json();
+            this.showToast('Collection created successfully!', 'success');
             this.hide();
             
-            // Notify that a new collection was created
-            window.dispatchEvent(new CustomEvent('collectionCreated'));
+            // Dispatch event to notify collection creation
+            window.dispatchEvent(new CustomEvent('collectionCreated', {
+                detail: { collection }
+            }));
+
+            // Clear input
+            input.value = '';
         } catch (error) {
             console.error('Error creating collection:', error);
             this.showToast('Failed to create collection', 'error');
         }
+    }
+
+    showNewCollectionDialog() {
+        this.classList.add('active');
+        const input = this.shadowRoot.querySelector('#collectionName');
+        input.value = '';
+        input.focus();
+    }
+
+    hide() {
+        this.classList.remove('active');
     }
 
     showToast(message, type) {
@@ -367,19 +547,7 @@ class NewCollectionModal extends HTMLElement {
         }
         toast.show(message, type);
     }
-
-    showNewCollectionDialog() {
-        this.classList.add('active');
-        const input = this.shadowRoot.querySelector('input');
-        input.value = '';
-        input.focus();
-    }
-
-    hide() {
-        this.classList.remove('active');
-    }
 }
 
-// Register custom elements
 customElements.define('collection-modal', CollectionModal);
 customElements.define('new-collection-modal', NewCollectionModal);

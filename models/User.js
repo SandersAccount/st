@@ -1,31 +1,103 @@
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
+import bcrypt from 'bcryptjs';
+import mongoose from '../config/database.js';
 
-const UserSchema = new mongoose.Schema({
-    username: {
+const creditRequestSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    credits: {
+        type: Number,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    requestedAt: {
+        type: Date,
+        default: Date.now
+    },
+    approvedAt: Date,
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }
+});
+
+const creditHistorySchema = new mongoose.Schema({
+    type: {
+        type: String,
+        enum: ['add', 'use'],
+        required: true
+    },
+    amount: {
+        type: Number,
+        required: true
+    },
+    details: {
+        type: String,
+        required: true
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+const userSchema = new mongoose.Schema({
+    name: {
         type: String,
         required: true,
-        unique: true,
-        trim: true,
-        minlength: 3
+        trim: true
     },
     email: {
         type: String,
         required: true,
         unique: true,
         trim: true,
-        lowercase: true,
-        match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+        lowercase: true
     },
     password: {
         type: String,
-        required: true,
-        minlength: 6
+        required: true
     },
-    collections: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Collection'
-    }],
+    nickname: {
+        type: String,
+        trim: true
+    },
+    bio: {
+        type: String,
+        trim: true
+    },
+    credits: {
+        type: Number,
+        default: 100,  // Initial credits for new users
+        min: 0  // Prevent negative credits
+    },
+    creditHistory: [creditHistorySchema],
+    creditRequests: [creditRequestSchema],
+    subscription: {
+        plan: {
+            type: String,
+            enum: ['free', 'pro', 'enterprise'],
+            default: 'free'
+        },
+        status: {
+            type: String,
+            enum: ['active', 'inactive', 'cancelled'],
+            default: 'active'
+        },
+        startDate: Date,
+        endDate: Date
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -33,7 +105,7 @@ const UserSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-UserSchema.pre('save', async function(next) {
+userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     
     try {
@@ -45,9 +117,17 @@ UserSchema.pre('save', async function(next) {
     }
 });
 
-// Method to compare passwords
-UserSchema.methods.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
+// Method to compare password
+userSchema.methods.comparePassword = async function(password) {
+    return bcrypt.compare(password, this.password);
 };
 
-module.exports = mongoose.model('User', UserSchema);
+// Create the model if it hasn't been created yet
+let User;
+try {
+    User = mongoose.model('User');
+} catch (error) {
+    User = mongoose.model('User', userSchema);
+}
+
+export default User;

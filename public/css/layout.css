@@ -1,0 +1,87 @@
+/* Topbar styles */
+#topbar {
+    background-color: #1a1a1a;
+    color: white;
+    height: 70px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+}
+
+.topbar-content {
+    max-width: 1200px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+#topbar .left {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+#topbar .right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#main-title {
+    font-size: 1.5rem;
+    margin: 0;
+    font-weight: 600;
+}
+
+#topbar nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+#topbar nav a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+#topbar nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#topbar nav a.active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.credits-display {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px 16px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+}
+
+.credits-display i {
+    color: #ffd700;
+}
+
+/* Main container */
+.container {
+    max-width: 1200px;
+    margin: 90px auto 32px;
+    padding: 0 20px;
+    width: 100%;
+    box-sizing: border-box;
+}

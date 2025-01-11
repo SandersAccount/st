@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Settings - AI Image Generator</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .profile-container {
+            max-width: 800px;
+            margin: 80px auto 0;
+            padding: 0 20px;
+        }
+
+        .profile-header {
+            margin-bottom: 2rem;
+        }
+
+        .profile-header h1 {
+            font-size: 24px;
+            margin: 0;
+            color: #fff;
+        }
+
+        .profile-header p {
+            color: #666;
+            margin: 4px 0 0;
+        }
+
+        .profile-tabs {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #333;
+        }
+
+        .profile-tab {
+            padding: 8px 0;
+            color: #666;
+            cursor: pointer;
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 14px;
+        }
+
+        .profile-tab.active {
+            color: #fff;
+        }
+
+        .profile-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #ff1cf7;
+        }
+
+        .tab-content {
+            display: none;
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .field-group {
+            margin-bottom: 24px;
+        }
+
+        .field-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .field-value {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .field-text {
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .edit-button {
+            padding: 6px 12px;
+            background: #333;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .edit-button:hover {
+            background: #444;
+        }
+
+        .subscription-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #1a472e;
+            color: #4caf50;
+        }
+
+        .subscription-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+
+        .credits-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .credits-count {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .credits-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .credits-warning {
+            background: #332b00;
+            border: 1px solid #665500;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 24px 0;
+            color: #ffb300;
+        }
+
+        .credits-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        .credits-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .credits-table td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            color: #fff;
+        }
+
+        .primary-button {
+            background: #ff1cf7;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .secondary-button {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .credits-section {
+            background: #1E1E1E;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .credits-display {
+            font-size: 24px;
+            margin: 16px 0;
+        }
+
+        #userCredits {
+            color: #ff1cf7;
+            font-weight: bold;
+        }
+
+        .buy-credits-btn {
+            background: #ff1cf7;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .buy-credits-btn:hover {
+            background: #ff45f9;
+        }
+
+        .credits-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .credits-popup-content {
+            background: #1E1E1E;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            padding: 24px;
+            color: #fff;
+        }
+
+        .credits-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .credits-popup-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .credits-slider {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .credits-info {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .credits-amount {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ff1cf7;
+            margin: 24px 0;
+        }
+
+        .credits-expiry {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .credits-details {
+            margin-top: 32px;
+        }
+
+        .credits-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .credits-table th,
+        .credits-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        .credits-table th {
+            color: #999;
+            font-weight: normal;
+        }
+
+        .credits-history {
+            margin-top: 2rem;
+        }
+        .credits-table {
+            width: 100%;
+            overflow-x: auto;
+        }
+        .credits-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .credits-table th, .credits-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .credits-table th {
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        .credit-add {
+            color: #4CAF50;
+        }
+        .credit-use {
+            color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+
+    <div class="profile-container">
+        <div class="profile-header">
+            <h1>Profile Settings</h1>
+            <p>Manage your personal information</p>
+        </div>
+
+        <div class="profile-tabs">
+            <button class="profile-tab active" onclick="switchTab('personal')">Personal Info</button>
+            <button class="profile-tab" onclick="switchTab('subscription')">Subscription</button>
+            <button class="profile-tab" onclick="switchTab('credits')">Credits</button>
+        </div>
+
+        <!-- Personal Info Tab -->
+        <div id="personal" class="tab-content active">
+            <div class="field-group">
+                <div class="field-label">Nickname</div>
+                <div class="field-value">
+                    <span id="nickname" class="field-text"></span>
+                    <button class="edit-button" onclick="editField('nickname')">Edit</button>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="field-label">Bio</div>
+                <div class="field-value">
+                    <span id="bio" class="field-text">Briefly introduce yourself in this space...</span>
+                    <button class="edit-button" onclick="editField('bio')">Edit</button>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="field-label">Social Media Links</div>
+                <div class="field-value">
+                    <div class="field-text">No social media links added</div>
+                    <button class="edit-button" onclick="addSocialMedia()">Add</button>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="field-label">Email Address</div>
+                <div class="field-value">
+                    <span id="email" class="field-text"></span>
+                    <button class="edit-button" onclick="modifyEmail()">Modify Email</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subscription Tab -->
+        <div id="subscription" class="tab-content">
+            <div class="subscription-header">
+                <h2>Your Standard Plan</h2>
+            </div>
+            <div class="subscription-content">
+                <div class="subscription-info">
+                    <div class="info-section">
+                        <h3>Credits</h3>
+                        <div class="credits-info">
+                            <span id="subscriptionCredits" class="credits-amount">0</span>
+                            <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
+                        </div>
+                    </div>
+                    <div class="info-section">
+                        <h3>Usage Details</h3>
+                        <div class="usage-stats">
+                            <div class="stat-item">
+                                <label>Credits:</label>
+                                <span id="currentCredits">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Stickers Generated:</label>
+                                <span id="stickersGenerated">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Collections:</label>
+                                <span id="collectionsCount">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-section">
+                        <h3>Plan Features</h3>
+                        <ul class="plan-features">
+                            <li>1000 credits</li>
+                            <li>General commercial terms</li>
+                            <li>Optional more credits on top</li>
+                            <li>3 concurrent fast jobs</li>
+                            <li>Unlimited Collections</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Credits Tab -->
+        <div id="credits" class="tab-content">
+            <div class="credits-header">
+                <h2>My Credits</h2>
+                <a href="#" style="color: #ff1cf7;">About Credits?</a>
+            </div>
+            <div class="credits-info">
+                <div class="current-credits">
+                    <h3>Current Balance</h3>
+                    <p class="credits-amount" id="totalCredits">0</p>
+                </div>
+                <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy Credits</button>
+            </div>
+            <div class="credits-history">
+                <h3>Credits History</h3>
+                <div class="credits-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditsHistory">
+                            <!-- Credit history will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credits Popup -->
+    <div class="credits-popup" id="creditsPopup">
+        <div class="credits-popup-content">
+            <div class="credits-popup-header">
+                <h2>Buy Credits</h2>
+                <button onclick="hideCreditsPopup()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <input type="range" min="100" max="1000" step="100" value="100" class="credits-slider" id="creditsSlider">
+            <div class="credits-info">
+                <div id="selectedCredits">100 Credits</div>
+                <div id="creditsDiscount">0% Discount</div>
+                <div id="creditsPrice">$10.00</div>
+            </div>
+            <button class="buy-credits-btn" onclick="purchaseCredits()">Buy Credits</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+        
+        // Initialize topbar
+        document.addEventListener('DOMContentLoaded', async () => {
+            await createTopbar();
+            loadUserProfile();
+        });
+    </script>
+    <script src="/js/credits-popup.js"></script>
+    <script>
+        // Credit packages configuration
+        const creditPackages = [
+            { credits: 100, discount: 0, price: 10.00 },
+            { credits: 200, discount: 4, price: 19.20 },
+            { credits: 300, discount: 6, price: 28.20 },
+            { credits: 400, discount: 8, price: 36.80 },
+            { credits: 500, discount: 10, price: 45.00 },
+            { credits: 600, discount: 12, price: 52.80 },
+            { credits: 700, discount: 14, price: 60.20 },
+            { credits: 800, discount: 16, price: 67.20 },
+            { credits: 900, discount: 18, price: 73.80 },
+            { credits: 1000, discount: 20, price: 80.00 }
+        ];
+
+        // Credits popup functionality
+        function showCreditsPopup() {
+            document.getElementById('creditsPopup').style.display = 'flex';
+        }
+
+        function hideCreditsPopup() {
+            document.getElementById('creditsPopup').style.display = 'none';
+        }
+
+        function updateCreditsInfo() {
+            const credits = parseInt(document.getElementById('creditsSlider').value);
+            const package = creditPackages.find(p => p.credits === credits);
+            
+            document.getElementById('selectedCredits').textContent = `${credits} Credits`;
+            document.getElementById('creditsDiscount').textContent = `${package.discount}% Discount`;
+            document.getElementById('creditsPrice').textContent = `$${package.price.toFixed(2)}`;
+        }
+
+        async function purchaseCredits() {
+            const credits = parseInt(document.getElementById('creditsSlider').value);
+            try {
+                const response = await fetch('/api/credits/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ credits })
+                });
+
+                if (response.ok) {
+                    alert('Credit purchase request sent to admin!');
+                    hideCreditsPopup();
+                    loadUserProfile(); // Refresh the profile data
+                } else {
+                    throw new Error('Failed to request credits');
+                }
+            } catch (error) {
+                console.error('Error requesting credits:', error);
+                alert('Failed to request credits. Please try again.');
+            }
+        }
+
+        // Initialize credits slider
+        document.getElementById('creditsSlider').addEventListener('input', updateCreditsInfo);
+
+        // Close popup when clicking outside
+        document.getElementById('creditsPopup').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('creditsPopup')) {
+                hideCreditsPopup();
+            }
+        });
+
+        // Tab switching functionality
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.profile-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.profile-tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // Load user data
+        fetch('/api/auth/me')
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('nickname').textContent = user.name;
+                document.getElementById('email').textContent = user.email;
+                if (user.bio) {
+                    document.getElementById('bio').textContent = user.bio;
+                }
+            })
+            .catch(error => console.error('Error loading user data:', error));
+
+        function editField(field) {
+            const element = document.getElementById(field);
+            const currentValue = element.textContent;
+            const input = document.createElement('input');
+            input.value = currentValue;
+            input.style.width = '100%';
+            input.style.background = '#333';
+            input.style.border = 'none';
+            input.style.padding = '8px';
+            input.style.borderRadius = '4px';
+            input.style.color = '#fff';
+            
+            input.onblur = function() {
+                updateField(field, input.value);
+            };
+            
+            element.textContent = '';
+            element.appendChild(input);
+            input.focus();
+        }
+
+        function updateField(field, value) {
+            fetch('/api/auth/update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ [field]: value }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(field).textContent = value;
+            })
+            .catch(error => console.error('Error updating field:', error));
+        }
+
+        function addSocialMedia() {
+            alert('Social media link addition functionality coming soon!');
+        }
+
+        function modifyEmail() {
+            alert('Email modification functionality coming soon!');
+        }
+
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const user = await response.json();
+                
+                // Update all credit displays
+                const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+                creditDisplays.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = user.credits || 0;
+                    }
+                });
+
+                // Update usage statistics
+                if (user.statistics) {
+                    document.getElementById('stickersGenerated').textContent = user.statistics.generationsCount || 0;
+                    document.getElementById('collectionsCount').textContent = user.statistics.collectionsCount || 0;
+                }
+                
+                // Update other profile information
+                document.getElementById('nickname').textContent = user.name || '';
+                document.getElementById('email').textContent = user.email || '';
+                
+                // Load credit history
+                await loadCreditHistory();
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+        // Update all credit displays when credits change
+        function updateAllCreditDisplays(credits) {
+            const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+            creditDisplays.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = credits;
+                }
+            });
+        }
+
+        // Listen for credit updates
+        window.addEventListener('creditsUpdated', (event) => {
+            if (event.detail && typeof event.detail.credits === 'number') {
+                updateAllCreditDisplays(event.detail.credits);
+            }
+        });
+
+        async function loadCreditHistory() {
+            try {
+                const response = await fetch('/api/credits/history');
+                const history = await response.json();
+                
+                const historyTable = document.getElementById('creditsHistory');
+                historyTable.innerHTML = history.map(item => `
+                    <tr>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td class="${item.type === 'add' ? 'credit-add' : 'credit-use'}">${item.type === 'add' ? 'Added' : 'Used'}</td>
+                        <td>${item.type === 'add' ? '+' : '-'}${item.amount}</td>
+                        <td>${item.details}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading credit history:', error);
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserProfile();
+        });
+    </script>
+</body>
+</html>

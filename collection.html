@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collection Details</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script type="module" src="/js/components/Toast.js"></script>
+    <script type="module" src="/js/components/GenerationCard.js"></script>
+    <script type="module" src="/js/components/CollectionModal.js"></script>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .collection-header {
+            margin-bottom: 2rem;
+            padding: 20px;
+            color: white;
+        }
+
+        .collection-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        #image-count {
+            color: #999;
+            margin-top: 8px;
+        }
+
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .image-card {
+            background: #1E1E1E;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 100%;
+        }
+
+        img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+    
+    <div class="container">
+        <div class="collection-header">
+            <h1 id="collection-title"></h1>
+            <p id="image-count"></p>
+        </div>
+
+        <div id="images-grid" class="images-grid">
+            <!-- Images will be loaded here -->
+        </div>
+    </div>
+
+    <collection-modal></collection-modal>
+
+    <script type="module">
+        import { GenerationCard } from '/js/components/GenerationCard.js';
+
+        async function removeFromCollection(collectionId, imageId) {
+            try {
+                const response = await fetch(`/api/collections/${collectionId}/images/${imageId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to remove image');
+                }
+
+                // Refresh the page to show updated collection
+                window.location.reload();
+            } catch (error) {
+                console.error('Error:', error);
+                const toast = document.createElement('toast-notification');
+                document.body.appendChild(toast);
+                toast.show('Failed to remove image from collection', 'error', 3000);
+            }
+        }
+
+        // Extend GenerationCard for collection-specific behavior
+        class CollectionGenerationCard extends GenerationCard {
+            constructor() {
+                super();
+                this._currentCollectionId = window.location.pathname.split('/').pop();
+            }
+
+            handleMoveToTrash() {
+                const imageId = this.getAttribute('image-id');
+                removeFromCollection(this._currentCollectionId, imageId);
+            }
+
+            // Override handleAddToCollection to exclude current collection
+            handleAddToCollection() {
+                console.log('handleAddToCollection called'); // Debug log
+                const modal = document.querySelector('collection-modal');
+                if (modal) {
+                    // Get image data
+                    const imageData = {
+                        imageUrl: this.getAttribute('image-url'),
+                        prompt: this.getAttribute('prompt'),
+                        timestamp: new Date().toISOString()
+                    };
+                    console.log('Setting image data:', imageData); // Debug log
+
+                    // Set the current image data
+                    modal.setImageData(imageData);
+                    // Set the collection to exclude
+                    modal.setAttribute('exclude-collection', this._currentCollectionId);
+                    modal.show();
+                } else {
+                    console.error('Collection modal not found'); // Debug log
+                }
+            }
+        }
+
+        customElements.define('collection-generation-card', CollectionGenerationCard);
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const collectionId = window.location.pathname.split('/').pop();
+            
+            try {
+                const response = await fetch(`/api/collections/${collectionId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch collection details');
+                }
+                
+                const collection = await response.json();
+                
+                // Update page title and count
+                document.getElementById('collection-title').textContent = collection.title;
+                document.getElementById('image-count').textContent = `${collection.images.length} images`;
+                
+                // Display images
+                const imagesGrid = document.getElementById('images-grid');
+                collection.images.forEach(image => {
+                    const card = document.createElement('collection-generation-card');
+                    
+                    // Log the image data for debugging
+                    console.log('Image data:', {
+                        imageUrl: image.imageUrl,
+                        prompt: image.prompt,
+                        id: image._id
+                    });
+
+                    // Ensure we have a valid prompt or default message
+                    const prompt = image.prompt && image.prompt.trim() !== '' 
+                        ? image.prompt 
+                        : 'No prompt available';
+                    
+                    // Set attributes with proper escaping for special characters
+                    card.setAttribute('image-url', image.imageUrl);
+                    card.setAttribute('prompt', prompt);
+                    card.setAttribute('image-id', image._id);
+                    card.setAttribute('collection-id', collection._id); // Add collection ID
+                    
+                    imagesGrid.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error:', error);
+                const toast = document.createElement('toast-notification');
+                document.body.appendChild(toast);
+                toast.show('Failed to load collection details', 'error', 3000);
+            }
+        });
+    </script>
+
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+        
+        // Initialize topbar
+        const topbarEl = document.getElementById('topbar');
+        createTopbar(topbarEl);
+    </script>
+</body>
+</html>

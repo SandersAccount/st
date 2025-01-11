@@ -1,0 +1,76 @@
+#topbar {
+    background-color: #1a1a1a;
+    color: white;
+    padding: 0 2rem;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+#topbar .left {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-right: auto;
+}
+
+#topbar .right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+#main-title {
+    font-size: 1.5rem;
+    margin: 0;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+#topbar nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+#topbar nav a {
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+}
+
+#topbar nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+#topbar nav a.active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.credits-display {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.credits-display i {
+    color: #ffd700;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 6rem auto 2rem;
+    padding: 0 2rem;
+}

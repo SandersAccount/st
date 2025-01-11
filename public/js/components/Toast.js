@@ -23,15 +23,10 @@ export class Toast extends HTMLElement {
             .toast.show {
                 opacity: 1;
             }
-            .toast.success {
-                background: #4CAF50;
-            }
-            .toast.error {
-                background: #f44336;
-            }
-            .toast.info {
-                background: #2196F3;
-            }
+            .toast.success { background: #4CAF50; }
+            .toast.error { background: #f44336; }
+            .toast.warning { background: #ff9800; }
+            .toast.info { background: #2196F3; }
         `;
 
         const toast = document.createElement('div');
@@ -42,16 +37,16 @@ export class Toast extends HTMLElement {
         this.shadowRoot.appendChild(style);
         this.shadowRoot.appendChild(toast);
 
-        // Force reflow
-        toast.offsetHeight;
+        // Show toast
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
 
-        // Show the toast
-        toast.classList.add('show');
-
-        // Hide and remove the toast after duration
+        // Hide and remove toast
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => {
+                // Remove the entire custom element from DOM
                 this.remove();
             }, 300);
         }, duration);
@@ -69,5 +64,4 @@ export function showToast(message, type = 'success') {
     toast.show(message, type, 4000);
 }
 
-// Register the custom element
 customElements.define('toast-notification', Toast);

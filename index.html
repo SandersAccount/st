@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #fff;
+        }
+
+        .topbar-wrapper {
+            background-color: #1a1a1a;
+            padding: 10px 0;
+        }
+
+        #topbar {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            height: 50px;
+        
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #topbar .left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        #topbar .right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 6rem auto 2rem;
+            padding: 0 1rem;
+        }
+        
+        .generator-form {
+            margin-bottom: 2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #fff;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #333;
+            border-radius: 8px;
+            min-height: 100px;
+            font-family: inherit;
+            background: #1a1a1a;
+            color: #fff;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        
+        button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin-top: 0.1rem;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .generation-container {
+            position: relative;
+            width: 400px;
+            margin: 0 auto;
+        }
+
+        .generation-image {
+            width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .loading {
+            margin: 1rem 0;
+            color: #999;
+        }
+
+        h1 {
+            margin: 0 0 2rem;
+            font-weight: 600;
+        }
+        
+        .style-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        
+        .style-section h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        style-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            padding: 1rem 0;
+        }
+
+        .style-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: #2a2a2a;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .style-option:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .style-option.selected {
+            border: 2px solid #4CAF50;
+        }
+
+        .style-preview {
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .style-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .style-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #fff;
+            text-align: center;
+        }
+        
+        .generate-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .generate-button:hover {
+            background-color: #45a049;
+        }
+        
+        .generate-button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        .actions {
+            margin-top: 1rem;
+        }
+        
+        .action-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .action-button:hover {
+            background-color: #45a049;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .generations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .recent-generations {
+            margin-top: 3rem;
+        }
+
+        .recent-generations h2 {
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .generation-card {
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1a1a1a;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .generation-card .card {
+            position: relative;
+        }
+
+        .generation-card .image-container {
+            width: 100%;
+            aspect-ratio: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .generation-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .generation-card .image-options-dropdown {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        .generation-card .dropdown-toggle {
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .generation-card .dropdown-toggle:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .generation-card .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 8px 0;
+            margin-top: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .generation-card .dropdown-toggle:focus + .dropdown-menu,
+        .generation-card .dropdown-menu:hover {
+            display: block;
+        }
+
+        .generation-card .dropdown-menu a {
+            display: block;
+            padding: 8px 16px;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+
+        .generation-card .dropdown-menu a:hover {
+            background: #3a3a3a;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0px;
+            background-color: #1a1a1a;
+            border-radius: 8px;
+            box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 16px;
+            width: 200px;
+            margin-top: 0.5rem;
+        }
+
+        .user-dropdown-content {
+            padding: 16px;
+        }
+
+        .credits-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .credits-icon {
+            font-size: 1.5em;
+        }
+
+        .btn-upgrade {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-upgrade:hover {
+            background: #45a049;
+        }
+
+        .collections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 24px;
+            margin: 24px 0;
+        }
+
+        .collection-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .collection-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .collection-preview {
+            aspect-ratio: 1;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2px;
+            background: #2a2a2a;
+            padding: 2px;
+            position: relative;
+        }
+
+        .preview-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .collection-info {
+            padding: 16px;
+        }
+
+        .collection-info h3 {
+            color: white;
+            margin: 0 0 4px;
+            font-size: 1em;
+        }
+
+        .image-count {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .create-new .collection-preview {
+            border: 2px dashed #3a3a3a;
+            background: transparent;
+        }
+
+        .preview-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #999;
+        }
+
+        .preview-placeholder i {
+            font-size: 24px;
+        }
+
+        .create-new:hover .collection-preview {
+            border-color: #4CAF50;
+        }
+
+        .create-new:hover .preview-placeholder {
+            color: #4CAF50;
+        }
+
+        .recent-generations {
+            margin-top: 48px;
+            padding: 1rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        .recent-generations h2 {
+            color: white;
+            margin-bottom: 24px;
+            font-size: 1.25rem;
+        }
+
+        .generations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 24px;
+        }
+
+        .generation-card {
+            background: #2a2a2a;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .generation-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .generation-image {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+
+        .generation-info {
+            padding: 1rem;
+        }
+
+        .generation-prompt {
+            color: #fff;
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+
+        .generation-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .generation-action {
+            flex: 1;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .generation-action:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar-wrapper">
+        <div id="topbar">
+            <div class="left">
+                <h1 id="main-title">Sticker Generator</h1>
+                <nav>
+                    <button class="nav-button active" onclick="showSection('generator')">Generator</button>
+                    <button class="nav-button" onclick="showSection('collections')">Collections</button>
+                </nav>
+            </div>
+            <div class="right">
+                <div class="credits-indicator">
+                    <span class="credits-icon">💎</span>
+                    <span id="topbarCredits">26</span>
+                </div>
+                <button class="btn-upgrade">Buy Credits</button>
+                <button class="user-menu-button">
+                    <div class="user-avatar">N</div>
+                </button>
+                <div class="user-dropdown" style="display: none; position: absolute; top: 100%; right: 0px; background-color: rgb(255, 255, 255); border-radius: 8px; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 16px; width: 200px; margin-top: 0.5rem;">
+                    <div class="user-dropdown-content">
+                        <div class="menu-header">
+                            <div class="user-info">
+                                <div class="user-avatar">N</div>
+                                <div class="user-details">
+                                    <div class="user-name">User</div>
+                                    <div class="user-email">user@example.com</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="menu-items">
+                            <a href="#" class="menu-item">
+                                <i class="fas fa-user"></i>
+                                Profile
+                            </a>
+                            <a href="#" class="menu-item">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                            <a href="#" class="menu-item">
+                                <i class="fas fa-crown"></i>
+                                Subscription
+                            </a>
+                            <div class="menu-divider"></div>
+                            <a href="#" class="menu-item" onclick="handleLogout(event)">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Log Out
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h3 id="main-title">Enter the Keyword for you Sticker</h3>
+        
+        <textarea id="prompt" placeholder="Enter your prompt..."></textarea>
+        
+        <div class="style-section">
+            <h3>Choose a Style</h3>
+            <style-selector></style-selector>
+        </div>
+
+        <button id="generate" class="generate-button">
+            <i class="fas fa-magic"></i>
+            Generate Image
+        </button>
+
+        <div id="result"></div>
+    </div>
+
+    <!-- Collection Modal -->
+    <div id="newCollectionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add to Collection</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="existingCollections">
+                    <h3>Select Collection</h3>
+                    <div class="collections-list"></div>
+                </div>
+                <div class="divider">or</div>
+                <div id="newCollection">
+                    <h3>Create New Collection</h3>
+                    <input type="text" id="newCollectionName" placeholder="Collection name">
+                    <button class="btn-primary create-collection">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="collections" style="display: none;">
+        <div class="container">
+            <h1>Your Collections</h1>
+            <div class="collections-grid">
+                <div class="collection-card create-new">
+                    <div class="collection-preview">
+                        <div class="preview-placeholder">
+                            <i class="fas fa-plus"></i>
+                            <span>Create New Collection</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Collections will be loaded here -->
+                <div class="collection-card">
+                    <div class="collection-preview">
+                        <img src="/public/images/no-style.png" alt="No style" class="preview-image">
+                        <img src="/public/images/minimalist.png" alt="Minimalist" class="preview-image">
+                        <img src="/public/images/disney.png" alt="Disney" class="preview-image">
+                        <img src="/public/images/apocalyptic.png" alt="Apocalyptic" class="preview-image">
+                    </div>
+                    <div class="collection-info">
+                        <h3>Styles</h3>
+                        <span class="image-count">68 images</span>
+                    </div>
+                </div>
+                <div class="collection-card">
+                    <div class="collection-preview">
+                        <img src="/public/images/placeholder.png" alt="Rabbit" class="preview-image">
+                    </div>
+                    <div class="collection-info">
+                        <h3>rabbits</h3>
+                        <span class="image-count">7 images</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="recent-generations">
+                <h2>Recent Generations</h2>
+                <div class="generations-grid" id="recentGenerationsGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <collection-modal></collection-modal>
+
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+        import '/js/components/StyleSelector.js';
+        import { createImageCard } from '/js/components/ImageCard.js';
+        import '/js/components/StyleSelector.js';
+        import '/js/components/Toast.js';
+        import { showToast } from '/js/components/Toast.js';
+        import '/js/components/GenerationCard.js';
+        import '/js/components/CollectionModal.js';
+
+        let currentImageData = null;
+
+        // Initialize topbar
+        createTopbar();
+
+        // Load settings for main title
+        async function loadMainTitle() {
+            try {
+                const response = await fetch('/api/settings');
+                const settings = await response.json();
+                const titleElement = document.querySelector('h1');
+                if (titleElement && settings.mainTitle) {
+                    titleElement.textContent = settings.mainTitle;
+                }
+            } catch (error) {
+                console.error('Error loading main title:', error);
+            }
+        }
+
+        // Load main title
+        loadMainTitle();
+
+        // Initialize components
+        const generateButton = document.getElementById('generate');
+        const promptInput = document.getElementById('prompt');
+        const resultDiv = document.getElementById('result');
+        const styleSelector = document.querySelector('style-selector');
+        const collectionModal = document.querySelector('collection-modal');
+        const recentGenerationsGrid = document.getElementById('recentGenerationsGrid');
+
+        // Load recent generations
+        async function loadRecentGenerations() {
+            try {
+                const response = await fetch('/api/generations/recent', {
+                    credentials: 'include'
+                });
+                if (!response.ok) throw new Error('Failed to load recent generations');
+                
+                const generations = await response.json();
+                recentGenerationsGrid.innerHTML = '';
+                
+                generations.forEach(gen => {
+                    const card = document.createElement('generation-card');
+                    card.setAttribute('image-url', gen.imageUrl);
+                    card.setAttribute('prompt', gen.prompt);
+                    recentGenerationsGrid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading recent generations:', error);
+                showToast('Failed to load recent generations', 'error');
+            }
+        }
+
+        // Load recent generations on page load
+        loadRecentGenerations();
+
+
+        // Initialize create collection functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const createCollectionSquare = document.querySelector('.create-collection-square');
+            if (createCollectionSquare) {
+                createCollectionSquare.addEventListener('click', () => {
+                    collectionModal.showNewCollectionDialog();
+                });
+            }
+        });
+
+        // Handle image generation
+        generateButton.addEventListener('click', async () => {
+            const prompt = promptInput.value.trim();
+            const stylePrompt = styleSelector.selectedStyle?.prompt || '';
+
+            if (!prompt) {
+                showToast('Please enter a prompt', 'error');
+                return;
+            }
+
+            generateButton.disabled = true;
+            generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            resultDiv.innerHTML = '<div class="loading">Generating your image...</div>';
+
+            try {
+                const fullPrompt = stylePrompt ? `${prompt}. ${stylePrompt}` : prompt;
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt: fullPrompt
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    if (response.status === 403) {
+                        showToast('Not enough credits to generate image', 'error');
+                    } else {
+                        throw new Error(error.error || 'Failed to generate image');
+                    }
+                    return;
+                }
+
+                const data = await response.json();
+                
+                // Show success message
+                showToast('Image generated successfully!', 'success');
+                
+                // Create result element with image
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '';
+                
+                const card = createImageCard(data.generation.imageUrl, document.getElementById('prompt').value);
+                resultDiv.appendChild(card);
+                
+                // Add to recent generations
+                const recentGenerations = document.getElementById('recentGenerations');
+                if (recentGenerations) {
+                    const recentCard = document.createElement('generation-card');
+                    recentCard.setAttribute('image-url', data.generation.imageUrl);
+                    recentCard.setAttribute('prompt', document.getElementById('prompt').value);
+                    recentGenerations.querySelector('.generations-grid').prepend(recentCard);
+                }
+                
+                // Update credits display
+                const topbarCredits = document.getElementById('topbarCredits');
+                const subscriptionCredits = document.getElementById('subscriptionCredits');
+                if (topbarCredits) topbarCredits.textContent = data.credits;
+                if (subscriptionCredits) subscriptionCredits.textContent = data.credits;
+                
+                showToast('Image generated successfully!', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to generate image. Please try again.', 'error');
+                resultDiv.innerHTML = '';
+            } finally {
+                generateButton.disabled = false;
+                generateButton.innerHTML = '<i class="fas fa-magic"></i> Generate Image';
+            }
+        });
+
+        // Handle Enter key in prompt input
+        promptInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                generateButton.click();
+            }
+        });
+
+        // Collection modal functionality
+        const modal = document.getElementById('newCollectionModal');
+        const closeBtn = modal.querySelector('.close-modal');
+        const createCollectionBtn = modal.querySelector('.create-collection');
+        const collectionsListDiv = modal.querySelector('.collections-list');
+
+        // Close modal when clicking close button or outside
+        closeBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
+
+        // Load collections when modal opens
+        async function loadCollections() {
+            try {
+                const response = await fetch('/api/collections', {
+                    credentials: 'include'
+                });
+                if (!response.ok) throw new Error('Failed to load collections');
+                
+                const collections = await response.json();
+                collectionsListDiv.innerHTML = '';
+                
+                collections.forEach(collection => {
+                    const item = document.createElement('div');
+                    item.className = 'collection-item';
+                    item.textContent = collection.name;
+                    item.addEventListener('click', () => addToExistingCollection(collection._id));
+                    collectionsListDiv.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Error loading collections:', error);
+                showToast('Failed to load collections', 'error');
+            }
+        }
+
+        // Add to existing collection
+        async function addToExistingCollection(collectionId) {
+            if (!currentImageData) return;
+            
+            try {
+                const response = await fetch(`/api/collections/${collectionId}/images`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        imageUrl: currentImageData.imageUrl,
+                        prompt: currentImageData.prompt
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to add to collection');
+                window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
+                detail: { collectionId }
+            }));
+                
+                showToast('Added to collection successfully!', 'success');
+                modal.classList.remove('active');
+            } catch (error) {
+                console.error('Error adding to collection:', error);
+                showToast('Failed to add to collection', 'error');
+            }
+        }
+
+        // Create new collection
+        createCollectionBtn.addEventListener('click', async () => {
+            const nameInput = document.getElementById('newCollectionName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                showToast('Please enter a collection name', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ name })
+                });
+
+                if (!response.ok) throw new Error('Failed to create collection');
+                
+                const collection = await response.json();
+                await addToExistingCollection(collection._id);
+                nameInput.value = '';
+            } catch (error) {
+                console.error('Error creating collection:', error);
+                showToast('Failed to create collection', 'error');
+            }
+        });
+
+        // Listen for addToCollection event
+        window.addEventListener('addToCollection', (e) => {
+            currentImageData = e.detail.generation;
+            loadCollections();
+            modal.classList.add('active');
+        });
+    </script>
+    <script>
+        function handleLogout(event) {
+            event.preventDefault();
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(() => {
+                window.location.href = '/login';
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                alert('Failed to logout. Please try again.');
+            });
+        }
+
+        function toggleUserMenu() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            
+            // Close when clicking outside
+            document.addEventListener('click', function closeMenu(e) {
+                if (!e.target.closest('.user-menu-button')) {
+                    dropdown.style.display = 'none';
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }
+
+        // Section switching
+        function showSection(sectionName) {
+            // Update nav buttons
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.classList.remove('active');
+                if (button.textContent.toLowerCase() === sectionName) {
+                    button.classList.add('active');
+                }
+            });
+
+            // Show/hide sections
+            const generatorSection = document.querySelector('.container');
+            const collectionsSection = document.getElementById('collections');
+
+            if (sectionName === 'generator') {
+                generatorSection.style.display = 'block';
+                collectionsSection.style.display = 'none';
+            } else {
+                generatorSection.style.display = 'none';
+                collectionsSection.style.display = 'block';
+            }
+        }
+
+        // Initialize sections
+        document.addEventListener('DOMContentLoaded', () => {
+            showSection('generator');
+        });
+    </script>
+</body>
+</html>

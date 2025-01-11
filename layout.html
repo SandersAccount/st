@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sticker Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div id="topbar"></div>
+    <div id="content">
+        <!-- Content will be injected here -->
+    </div>
+
+    <script type="module">
+        import { createTopbar } from './js/components/Topbar.js';
+        
+        // Create topbar when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const topbarDiv = document.getElementById('topbar');
+            createTopbar(topbarDiv);
+        });
+    </script>
+</body>
+</html>

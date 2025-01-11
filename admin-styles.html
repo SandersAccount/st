@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Manage Styles</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .styles-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 2rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .styles-table th,
+        .styles-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        .styles-table th {
+            background: #2a2a2a;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .style-image {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 4px;
+            padding: 0;
+            margin: 0;
+            display: block;
+        }
+
+        .styles-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+            vertical-align: middle;
+        }
+
+        .styles-table td:first-child {
+            width: 90px;
+            padding: 0.5rem;
+        }
+
+        .add-style-form {
+            background: #1a1a1a;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #fff;
+            font-family: inherit;
+        }
+
+        .form-group input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-label {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #2a2a2a;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .file-name {
+            margin-left: 1rem;
+            color: #999;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-edit,
+        .btn-delete {
+            padding: 0.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .btn-edit {
+            background: #4a4a4a;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            color: #fff;
+            margin: 0;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .preview-image {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            margin-bottom: 1rem;
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+
+        .reorder-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .btn-reorder {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .btn-reorder:hover {
+            color: white;
+        }
+
+        .btn-reorder:disabled {
+            color: #444;
+            cursor: not-allowed;
+        }
+
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .sortable:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .sortable::after {
+            content: '↕️';
+            margin-left: 5px;
+            opacity: 0.3;
+        }
+        
+        .sortable.asc::after {
+            content: '↑';
+            opacity: 1;
+        }
+        
+        .sortable.desc::after {
+            content: '↓';
+            opacity: 1;
+        }
+
+        /* Add styles for the save order button */
+        .order-actions {
+            margin: 20px 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-save-order {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-save-order:hover {
+            background-color: #45a049;
+        }
+
+        .btn-save-order:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .btn-save-order i {
+            font-size: 16px;
+        }
+
+        .settings-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+
+        .settings-form {
+            margin-top: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #fff;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+    
+    <div class="container">
+        <h1>Manage Styles</h1>
+        
+        <!-- Add Settings Section -->
+        <div class="settings-section">
+            <h2>App Settings</h2>
+            <form id="settingsForm" class="settings-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="appName">Top Bar Text/Logo:</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="text" id="appName" name="appName" class="form-control" style="flex: 1;">
+                        <div style="display: flex; align-items: center;">
+                            <input type="checkbox" id="useLogoInstead" name="useLogoInstead">
+                            <label for="useLogoInstead" style="margin-left: 5px;">Use Logo Instead</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group" id="logoUploadGroup" style="display: none;">
+                    <label for="logoFile">Upload Logo:</label>
+                    <input type="file" id="logoFile" name="logo" accept="image/*" class="form-control">
+                    <img id="logoPreview" src="" alt="" style="max-height: 50px; margin-top: 10px; display: none;">
+                </div>
+
+                <div class="form-group">
+                    <label for="mainTitle">Main Title Text:</label>
+                    <input type="text" id="mainTitle" name="mainTitle" class="form-control">
+                </div>
+
+                <button type="submit" class="btn-primary">Save Settings</button>
+            </form>
+        </div>
+
+        <div class="order-actions">
+            <button id="saveOrderButton" onclick="saveOrder()" class="btn-primary" style="display: none;">Save Order</button>
+        </div>
+
+        <form id="addStyleForm" class="add-style-form" enctype="multipart/form-data" onsubmit="addStyle(event)">
+            <div class="form-group">
+                <label for="styleName">Style Name</label>
+                <input type="text" id="styleName" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="stylePrompt">Style Prompt</label>
+                <textarea id="stylePrompt" name="prompt" rows="3" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="file-upload-label" for="styleImage">
+                    <i class="fas fa-upload"></i> Upload Image
+                </label>
+                <input type="file" id="styleImage" name="image" accept="image/*" required>
+                <span class="file-name"></span>
+                <img id="imagePreview" src="" alt="Image preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
+            </div>
+            
+            <button type="submit" class="btn-primary">Add Style</button>
+        </form>
+
+        <table class="styles-table">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th class="sortable" data-sort="name">Name</th>
+                    <th>Prompt</th>
+                    <th>Actions</th>
+                    <th>Order</th>
+                </tr>
+            </thead>
+            <tbody id="stylesTableBody">
+                <!-- Styles will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Edit Style</h2>
+                <button class="close-modal" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form id="editStyleForm" enctype="multipart/form-data" onsubmit="updateStyle(event)">
+                <input type="hidden" id="editStyleId">
+                
+                <div class="form-group">
+                    <label for="editStyleName">Style Name</label>
+                    <input type="text" id="editStyleName" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editStylePrompt">Style Prompt</label>
+                    <textarea id="editStylePrompt" name="prompt" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="file-upload-label" for="editStyleImage">
+                        <i class="fas fa-upload"></i> Upload New Image
+                    </label>
+                    <input type="file" id="editStyleImage" name="image" accept="image/*">
+                    <span class="file-name"></span>
+                    <img id="editImagePreview" src="" alt="Image preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
+                </div>
+                
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+
+        // Initialize topbar
+        createTopbar();
+
+        let currentSort = { field: 'order', order: 'asc' };
+        let hasOrderChanged = false;
+        
+        // Function to handle file selection
+        function handleFileSelect(event, previewId) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(previewId).src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+                
+                // Update file name display
+                const fileNameSpan = event.target.nextElementSibling;
+                fileNameSpan.textContent = file.name;
+            }
+        }
+
+        // Add event listeners for file inputs
+        document.getElementById('styleImage').addEventListener('change', (e) => handleFileSelect(e, 'imagePreview'));
+        document.getElementById('editStyleImage').addEventListener('change', (e) => handleFileSelect(e, 'editImagePreview'));
+
+        // Function to move style up or down
+        window.moveStyle = async function(styleId, direction) {
+            const table = document.querySelector('.styles-table tbody');
+            const rows = Array.from(table.querySelectorAll('tr'));
+            const currentRow = rows.find(row => row.dataset.styleId === styleId);
+            const currentIndex = rows.indexOf(currentRow);
+
+            if (direction === 'up' && currentIndex > 0) {
+                table.insertBefore(currentRow, rows[currentIndex - 1]);
+                hasOrderChanged = true;
+            } else if (direction === 'down' && currentIndex < rows.length - 1) {
+                table.insertBefore(currentRow, rows[currentIndex + 2]);
+                hasOrderChanged = true;
+            }
+
+            // Show/hide save order button
+            document.getElementById('saveOrderButton').style.display = hasOrderChanged ? 'block' : 'none';
+        };
+
+        // Function to save the new order
+        window.saveOrder = async function() {
+            const rows = Array.from(document.querySelectorAll('.styles-table tbody tr'));
+            const newOrder = rows.map((row, index) => ({
+                id: row.dataset.styleId,
+                order: index
+            }));
+
+            try {
+                const response = await fetch('/api/styles/order', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ styles: newOrder })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save order');
+                }
+
+                hasOrderChanged = false;
+                document.getElementById('saveOrderButton').style.display = 'none';
+                alert('Order saved successfully!');
+            } catch (error) {
+                console.error('Error saving order:', error);
+                alert('Failed to save order: ' + error.message);
+            }
+        };
+
+        // Function to add a new style
+        async function addStyle(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            
+            try {
+                const response = await fetch('/api/styles', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Server error response:', errorData);
+                    throw new Error(errorData.details || errorData.error || 'Failed to add style');
+                }
+
+                await loadStyles();
+                event.target.reset();
+                document.getElementById('imagePreview').src = '';
+                document.querySelector('#styleImage').nextElementSibling.textContent = '';
+            } catch (error) {
+                console.error('Error adding style:', error);
+                alert(`Error adding style: ${error.message}`);
+            }
+        }
+
+        // Function to load styles
+        async function loadStyles() {
+            try {
+                const response = await fetch(`/api/styles?sortBy=${currentSort.field}&sortOrder=${currentSort.order}`, {
+                    credentials: 'include'
+                });
+                const styles = await response.json();
+                
+                const tbody = document.querySelector('.styles-table tbody');
+                tbody.innerHTML = styles.map((style, index) => `
+                    <tr data-style-id="${style._id}">
+                        <td>
+                            <img src="${style.imageUrl}" alt="${style.name}" style="width: 50px; height: 50px;">
+                        </td>
+                        <td>${style.name}</td>
+                        <td>${style.prompt}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-edit" onclick="editStyle('${style._id}', '${style.name}', '${style.prompt}', '${style.imageUrl}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-delete" onclick="deleteStyle('${style._id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="reorder-buttons">
+                                <button class="btn-reorder" onclick="moveStyle('${style._id}', 'up')" ${index === 0 ? 'disabled' : ''}>
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                                <button class="btn-reorder" onclick="moveStyle('${style._id}', 'down')" ${index === styles.length - 1 ? 'disabled' : ''}>
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading styles:', error);
+                alert('Failed to load styles');
+            }
+        }
+
+        // Load styles on page load
+        loadStyles();
+
+        // Add form submit handler
+        document.getElementById('addStyleForm').addEventListener('submit', addStyle);
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings', {
+                    credentials: 'include'
+                });
+                const settings = await response.json();
+                
+                // Populate form
+                document.getElementById('appName').value = settings.appName || '';
+                document.getElementById('mainTitle').value = settings.mainTitle || '';
+                document.getElementById('useLogoInstead').checked = settings.useLogoInstead || false;
+                
+                // Handle logo preview
+                if (settings.useLogoInstead) {
+                    document.getElementById('logoUploadGroup').style.display = 'block';
+                    if (settings.logoUrl) {
+                        document.getElementById('logoPreview').src = settings.logoUrl;
+                        document.getElementById('logoPreview').style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        // Handle logo checkbox
+        document.getElementById('useLogoInstead').addEventListener('change', function(e) {
+            document.getElementById('logoUploadGroup').style.display = e.target.checked ? 'block' : 'none';
+        });
+
+        // Handle logo file selection
+        document.getElementById('logoFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('logoPreview').src = e.target.result;
+                    document.getElementById('logoPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle settings form submission
+        document.getElementById('settingsForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            
+            // Add text fields
+            formData.append('appName', document.getElementById('appName').value);
+            formData.append('mainTitle', document.getElementById('mainTitle').value);
+            
+            // Add checkbox state
+            const useLogoInstead = document.getElementById('useLogoInstead').checked;
+            formData.append('useLogoInstead', useLogoInstead);
+            
+            // Add logo file if it exists and useLogoInstead is checked
+            const logoFile = document.getElementById('logoFile').files[0];
+            if (useLogoInstead && logoFile) {
+                formData.append('logo', logoFile);
+            }
+            
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'PUT',
+                    credentials: 'include',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save settings');
+                }
+
+                alert('Settings saved successfully!');
+                window.location.reload();
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Failed to save settings: ' + error.message);
+            }
+        });
+
+        // Load settings on page load
+        loadSettings();
+    </script>
+</body>
+</html>

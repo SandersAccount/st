@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Plans - AI Image Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .plans-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .plan-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 2rem;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .plan-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .plan-price {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+        
+        .plan-price span {
+            font-size: 1rem;
+            color: #666;
+        }
+        
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0;
+        }
+        
+        .plan-features li {
+            padding: 0.5rem 0;
+            color: #666;
+        }
+        
+        .plan-button {
+            display: inline-block;
+            padding: 0.75rem 2rem;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.2s;
+        }
+        
+        .plan-button:hover {
+            background-color: #45a049;
+        }
+        
+        .plan-button.current {
+            background-color: #666;
+            cursor: default;
+        }
+        
+        .plan-button.current:hover {
+            background-color: #666;
+        }
+        
+        .error {
+            color: #ff0000;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <script src="/topbar.js"></script>
+    
+    <div class="plans-container">
+        <h1>Choose Your Plan</h1>
+        <p>Select the plan that best fits your needs</p>
+        
+        <div class="plans-grid" id="plansGrid">
+            <!-- Plans will be loaded dynamically -->
+        </div>
+        
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        // Load current subscription status and available plans
+        async function loadPlans() {
+            try {
+                const [subResponse, plansResponse] = await Promise.all([
+                    fetch('/api/subscription/current', { credentials: 'include' }),
+                    fetch('/api/subscription/plans', { credentials: 'include' })
+                ]);
+                
+                if (!subResponse.ok || !plansResponse.ok) {
+                    throw new Error('Failed to load subscription data');
+                }
+                
+                const currentSub = await subResponse.json();
+                const plans = await plansResponse.json();
+                
+                const plansGrid = document.getElementById('plansGrid');
+                plansGrid.innerHTML = plans.map(plan => `
+                    <div class="plan-card">
+                        <div class="plan-name">${plan.name}</div>
+                        <div class="plan-price">$${plan.price}<span>/month</span></div>
+                        <ul class="plan-features">
+                            ${plan.features.map(feature => `<li>${feature}</li>`).join('')}
+                        </ul>
+                        ${currentSub.plan === plan.id 
+                            ? `<button class="plan-button current">Current Plan</button>`
+                            : `<button class="plan-button" onclick="subscribeToPlan('${plan.id}')">
+                                ${currentSub.plan === 'free' ? 'Subscribe' : 'Switch Plan'}
+                               </button>`
+                        }
+                    </div>
+                `).join('');
+                
+            } catch (err) {
+                document.getElementById('error').textContent = err.message;
+            }
+        }
+        
+        // Subscribe to a plan
+        async function subscribeToPlan(planId) {
+            try {
+                const response = await fetch(`/api/subscription/subscribe/${planId}`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to subscribe');
+                }
+                
+                // Reload plans to show updated status
+                loadPlans();
+                
+            } catch (err) {
+                document.getElementById('error').textContent = err.message;
+            }
+        }
+        
+        // Load plans when page loads
+        document.addEventListener('DOMContentLoaded', loadPlans);
+    </script>
+</body>
+</html>

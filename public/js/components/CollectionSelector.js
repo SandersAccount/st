@@ -1,6 +1,3 @@
-// CollectionSelector.js
-// Import necessary dependencies here
-
 export class CollectionSelector {
     constructor() {
         this.modal = this.createModal();
@@ -105,8 +102,7 @@ export class CollectionSelector {
             });
 
             if (!response.ok) throw new Error('Failed to add to collection');
-            
-            window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
+                window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
                 detail: { collectionId }
             }));
             
