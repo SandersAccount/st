@@ -15,7 +15,7 @@ import imageGenerator from './services/imageGenerator.js';
 import Generation from './models/Generation.js';
 import Collection from './models/Collection.js'; 
 import jwt from 'jsonwebtoken'; 
-import User from './models/user.js';
+import User from './models/User.js';
 import Settings from './models/Settings.js';
 import authRoutes from './routes/auth.js';
 import subscriptionRoutes from './routes/subscription.js';
