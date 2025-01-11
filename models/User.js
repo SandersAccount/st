@@ -19,18 +19,26 @@ const creditRequestSchema = new mongoose.Schema({
     requestedAt: {
         type: Date,
         default: Date.now
+    },
+    approvedAt: Date,
+    approvedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }
 });
 
 const userSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true
+        required: true,
+        trim: true
     },
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        trim: true,
+        lowercase: true
     },
     password: {
         type: String,
@@ -43,7 +51,22 @@ const userSchema = new mongoose.Schema({
     },
     credits: {
         type: Number,
-        default: 0
+        default: 100,  // Initial credits for new users
+        min: 0
+    },
+    subscription: {
+        plan: {
+            type: String,
+            enum: ['free', 'pro', 'enterprise'],
+            default: 'free'
+        },
+        status: {
+            type: String,
+            enum: ['active', 'inactive', 'cancelled'],
+            default: 'active'
+        },
+        startDate: Date,
+        endDate: Date
     },
     creditRequests: [creditRequestSchema],
     createdAt: {
