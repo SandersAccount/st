@@ -40,6 +40,12 @@
             color: #333;
         }
 
+        .stat-card .subtext {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
         .users-table {
             width: 100%;
             background: white;
@@ -203,12 +209,19 @@
                 <div id="totalUsers" class="value">-</div>
             </div>
             <div class="stat-card">
-                <h3>Pro Subscriptions</h3>
+                <h3>Pro Users</h3>
                 <div id="proUsers" class="value">-</div>
+                <div class="subtext">Active Pro Subscriptions</div>
             </div>
             <div class="stat-card">
                 <h3>Total Credits</h3>
                 <div id="totalCredits" class="value">-</div>
+                <div id="avgCredits" class="subtext"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Pending Requests</h3>
+                <div id="pendingRequests" class="value">-</div>
+                <div id="pendingCredits" class="subtext"></div>
             </div>
         </div>
 
@@ -235,11 +248,24 @@
                     });
                     const data = await response.json();
                     
+                    // Update total users
                     document.getElementById('totalUsers').textContent = data.users.total || 0;
-                    document.getElementById('proUsers').textContent = 
-                        data.subscriptions?.find(s => s._id === 'pro')?.active || 0;
-                    document.getElementById('totalCredits').textContent = 
-                        data.creditRequests?.reduce((total, req) => total + (req.totalCredits || 0), 0) || 0;
+
+                    // Update pro users
+                    const proStats = data.subscriptions.find(s => s._id === 'pro') || { active: 0 };
+                    document.getElementById('proUsers').textContent = proStats.active;
+
+                    // Update credits
+                    document.getElementById('totalCredits').textContent = data.credits.total.toLocaleString();
+                    document.getElementById('avgCredits').textContent = 
+                        `Average ${Math.round(data.credits.average)} per user`;
+
+                    // Update pending requests
+                    const pendingStats = data.creditRequests.find(r => r._id === 'pending') || { count: 0, totalCredits: 0 };
+                    document.getElementById('pendingRequests').textContent = pendingStats.count;
+                    document.getElementById('pendingCredits').textContent = 
+                        pendingStats.count > 0 ? `${pendingStats.totalCredits.toLocaleString()} credits requested` : 'No pending requests';
+
                 } catch (error) {
                     console.error('Error loading stats:', error);
                 }
@@ -261,8 +287,8 @@
                                 <h3>${user.name}</h3>
                                 <p>${user.email}</p>
                                 <p>Credits: ${user.credits || 0}</p>
-                                <p>Role: ${user.role || 'user'}</p>
-                                <p>Plan: ${user.subscription?.plan || 'free'}</p>
+                                <p>Role: <span class="badge badge-${user.role || 'user'}">${user.role || 'user'}</span></p>
+                                <p>Plan: <span class="badge badge-${user.subscription?.plan || 'free'}">${user.subscription?.plan || 'free'}</span></p>
                                 <p>Status: ${user.subscription?.status || 'active'}</p>
                             </div>
                             <div class="user-actions">
@@ -292,6 +318,7 @@
                     });
                     
                     loadUsers();
+                    loadStats();
                 } catch (error) {
                     console.error('Error updating role:', error);
                 }
@@ -315,6 +342,7 @@
                     if (response.ok) {
                         alert('Credits sent successfully!');
                         loadUsers();
+                        loadStats();
                     } else {
                         throw new Error('Failed to send credits');
                     }

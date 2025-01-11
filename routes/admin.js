@@ -180,29 +180,61 @@ router.get('/stats', [auth, adminAuth], async (req, res) => {
             }
         ]);
 
-        // Get subscription stats
+        // Get total users
+        const totalUsers = usersByRole.reduce((acc, curr) => acc + curr.count, 0);
+
+        // Get subscription stats with default values
         const subscriptionStats = await User.aggregate([
             {
                 $group: {
-                    _id: '$subscription.plan',
-                    count: { $sum: 1 },
+                    _id: { 
+                        plan: { $ifNull: ['$subscription.plan', 'free'] },
+                        status: { $ifNull: ['$subscription.status', 'active'] }
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: '$_id.plan',
+                    count: { $sum: '$count' },
                     active: {
                         $sum: {
-                            $cond: [{ $eq: ['$subscription.status', 'active'] }, 1, 0]
+                            $cond: [{ $eq: ['$_id.status', 'active'] }, '$count', 0]
                         }
                     }
                 }
             }
         ]);
 
-        // Get credit request stats
-        const creditRequestStats = await User.aggregate([
-            { $unwind: '$creditRequests' },
+        // Get credit stats
+        const creditStats = await User.aggregate([
             {
                 $group: {
-                    _id: '$creditRequests.status',
+                    _id: null,
+                    totalCredits: { $sum: '$credits' },
+                    totalUsers: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Get credit request stats
+        const creditRequestStats = await User.aggregate([
+            {
+                $unwind: {
+                    path: '$creditRequests',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $group: {
+                    _id: { $ifNull: ['$creditRequests.status', 'none'] },
                     count: { $sum: 1 },
-                    totalCredits: { $sum: '$creditRequests.credits' }
+                    totalCredits: { 
+                        $sum: { 
+                            $ifNull: ['$creditRequests.credits', 0] 
+                        } 
+                    }
                 }
             }
         ]);
@@ -212,10 +244,24 @@ router.get('/stats', [auth, adminAuth], async (req, res) => {
         res.json({
             users: {
                 byRole: usersByRole,
-                total: usersByRole.reduce((acc, curr) => acc + curr.count, 0)
+                total: totalUsers
             },
-            subscriptions: subscriptionStats,
-            creditRequests: creditRequestStats
+            subscriptions: subscriptionStats.map(stat => ({
+                ...stat,
+                _id: stat._id || 'free',
+                count: stat.count || 0,
+                active: stat.active || 0
+            })),
+            credits: {
+                total: creditStats[0]?.totalCredits || 0,
+                average: creditStats[0] ? creditStats[0].totalCredits / creditStats[0].totalUsers : 0
+            },
+            creditRequests: creditRequestStats.map(stat => ({
+                ...stat,
+                _id: stat._id || 'none',
+                count: stat.count || 0,
+                totalCredits: stat.totalCredits || 0
+            }))
         });
     } catch (error) {
         console.error('Get stats error:', error);
