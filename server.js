@@ -2,12 +2,24 @@ const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 const app = express();
 
-// Middleware
+// Security middleware
+app.use(helmet());
 app.use(cors());
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+});
+app.use('/api/', limiter);
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -26,6 +38,9 @@ const Collection = require('./models/Collection');
 const Image = require('./models/Image');
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/collections', require('./routes/collections'));
+
 app.get('/api/collections', async (req, res) => {
     try {
         const collections = await Collection.find().populate('images');
@@ -98,6 +113,15 @@ app.delete('/api/collections/:collectionId/images/:imageId', async (req, res) =>
         console.error('Error removing image from collection:', error);
         res.status(500).json({ error: 'Failed to remove image from collection' });
     }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: 'Something went wrong!',
+        message: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
 // Serve index.html for all other routes
