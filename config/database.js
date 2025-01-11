@@ -6,12 +6,15 @@ dotenv.config();
 const connectDB = async () => {
     try {
         const options = {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
             retryWrites: true,
             w: 'majority',
-            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-            family: 4 // Use IPv4, skip trying IPv6
+            serverSelectionTimeoutMS: 30000, // Increased timeout
+            family: 4, // Use IPv4, skip trying IPv6
+            ssl: true,
+            tls: true,
+            tlsAllowInvalidCertificates: false,
+            tlsAllowInvalidHostnames: false,
+            maxPoolSize: 10
         };
 
         await mongoose.connect(process.env.MONGODB_URI, options);
@@ -38,7 +41,7 @@ mongoose.connection.on('disconnected', () => {
     console.log('Mongoose disconnected from MongoDB');
 });
 
-// If Node process ends, close the Mongoose connection
+// Handle application termination
 process.on('SIGINT', async () => {
     try {
         await mongoose.connection.close();
@@ -52,4 +55,4 @@ process.on('SIGINT', async () => {
 
 connectDB();
 
-export default mongoose;
+export default connectDB;
