@@ -8,27 +8,43 @@ const connectDB = async () => {
         const options = {
             retryWrites: true,
             w: 'majority',
-            serverSelectionTimeoutMS: 30000, // Increased timeout
-            family: 4, // Use IPv4, skip trying IPv6
-            ssl: true,
+            serverSelectionTimeoutMS: 30000,
+            family: 4,
             tls: true,
-            tlsAllowInvalidCertificates: false,
-            tlsAllowInvalidHostnames: false,
-            maxPoolSize: 10
+            tlsInsecure: false,
+            minPoolSize: 0,
+            maxPoolSize: 10,
+            authSource: 'admin'
         };
 
-        await mongoose.connect(process.env.MONGODB_URI, options);
+        // Extract the protocol and rest of the URI
+        const uri = process.env.MONGODB_URI;
+        if (!uri) {
+            throw new Error('MONGODB_URI is not defined in environment variables');
+        }
+
+        // Add retryWrites and w=majority if not present
+        const finalUri = uri.includes('retryWrites') ? uri : `${uri}?retryWrites=true&w=majority`;
+
+        await mongoose.connect(finalUri, options);
         console.log('Connected to MongoDB successfully');
     } catch (error) {
         console.error('MongoDB connection error:', error);
-        // Don't exit in development, but you might want to in production
         if (process.env.NODE_ENV === 'production') {
-            process.exit(1);
+            // In production, wait and retry once before exiting
+            console.log('Retrying connection in 5 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            try {
+                await mongoose.connect(process.env.MONGODB_URI);
+                console.log('Connected to MongoDB successfully on retry');
+            } catch (retryError) {
+                console.error('MongoDB retry connection failed:', retryError);
+                process.exit(1);
+            }
         }
     }
 };
 
-// Handle connection events
 mongoose.connection.on('connected', () => {
     console.log('Mongoose connected to MongoDB');
 });
@@ -41,7 +57,6 @@ mongoose.connection.on('disconnected', () => {
     console.log('Mongoose disconnected from MongoDB');
 });
 
-// Handle application termination
 process.on('SIGINT', async () => {
     try {
         await mongoose.connection.close();
@@ -53,6 +68,7 @@ process.on('SIGINT', async () => {
     }
 });
 
+// Connect to MongoDB
 connectDB();
 
 export { connectDB, mongoose as default };
