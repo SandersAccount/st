@@ -9,12 +9,20 @@ const connectDB = async () => {
             retryWrites: true,
             w: 'majority',
             serverSelectionTimeoutMS: 30000,
+            socketTimeoutMS: 45000,
             family: 4,
             tls: true,
-            tlsInsecure: false,
+            tlsAllowInvalidCertificates: true, // Allow invalid certificates in production
+            tlsAllowInvalidHostnames: true,    // Allow invalid hostnames in production
+            useNewUrlParser: true,             // Add this back for compatibility
+            useUnifiedTopology: true,          // Add this back for compatibility
             minPoolSize: 0,
             maxPoolSize: 10,
-            authSource: 'admin'
+            serverApi: {
+                version: '1',
+                strict: true,
+                deprecationErrors: true
+            }
         };
 
         // Extract the protocol and rest of the URI
@@ -23,10 +31,8 @@ const connectDB = async () => {
             throw new Error('MONGODB_URI is not defined in environment variables');
         }
 
-        // Add retryWrites and w=majority if not present
-        const finalUri = uri.includes('retryWrites') ? uri : `${uri}?retryWrites=true&w=majority`;
-
-        await mongoose.connect(finalUri, options);
+        console.log('Attempting to connect to MongoDB...');
+        await mongoose.connect(uri, options);
         console.log('Connected to MongoDB successfully');
     } catch (error) {
         console.error('MongoDB connection error:', error);
@@ -35,7 +41,11 @@ const connectDB = async () => {
             console.log('Retrying connection in 5 seconds...');
             await new Promise(resolve => setTimeout(resolve, 5000));
             try {
-                await mongoose.connect(process.env.MONGODB_URI);
+                const retryOptions = {
+                    ...options,
+                    serverSelectionTimeoutMS: 60000, // Increase timeout for retry
+                };
+                await mongoose.connect(process.env.MONGODB_URI, retryOptions);
                 console.log('Connected to MongoDB successfully on retry');
             } catch (retryError) {
                 console.error('MongoDB retry connection failed:', retryError);
