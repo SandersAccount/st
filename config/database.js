@@ -6,23 +6,17 @@ dotenv.config();
 const connectDB = async () => {
     try {
         const options = {
+            serverSelectionTimeoutMS: 60000,
+            socketTimeoutMS: 45000,
+            maxPoolSize: 10,
+            minPoolSize: 0,
             retryWrites: true,
             w: 'majority',
-            serverSelectionTimeoutMS: 30000,
-            socketTimeoutMS: 45000,
+            directConnection: false,
+            ssl: true,
+            sslValidate: true,
             family: 4,
-            tls: true,
-            tlsAllowInvalidCertificates: true, // Allow invalid certificates in production
-            tlsAllowInvalidHostnames: true,    // Allow invalid hostnames in production
-            useNewUrlParser: true,             // Add this back for compatibility
-            useUnifiedTopology: true,          // Add this back for compatibility
-            minPoolSize: 0,
-            maxPoolSize: 10,
-            serverApi: {
-                version: '1',
-                strict: true,
-                deprecationErrors: true
-            }
+            authSource: 'admin'
         };
 
         // Extract the protocol and rest of the URI
@@ -31,8 +25,17 @@ const connectDB = async () => {
             throw new Error('MONGODB_URI is not defined in environment variables');
         }
 
+        // Add required parameters to URI if not present
+        let finalUri = uri;
+        if (!finalUri.includes('tls=true')) {
+            finalUri += (finalUri.includes('?') ? '&' : '?') + 'tls=true';
+        }
+        if (!finalUri.includes('tlsVersion')) {
+            finalUri += '&tlsVersion=TLS1_2';
+        }
+
         console.log('Attempting to connect to MongoDB...');
-        await mongoose.connect(uri, options);
+        await mongoose.connect(finalUri, options);
         console.log('Connected to MongoDB successfully');
     } catch (error) {
         console.error('MongoDB connection error:', error);
@@ -41,11 +44,10 @@ const connectDB = async () => {
             console.log('Retrying connection in 5 seconds...');
             await new Promise(resolve => setTimeout(resolve, 5000));
             try {
-                const retryOptions = {
+                await mongoose.connect(process.env.MONGODB_URI, {
                     ...options,
-                    serverSelectionTimeoutMS: 60000, // Increase timeout for retry
-                };
-                await mongoose.connect(process.env.MONGODB_URI, retryOptions);
+                    serverSelectionTimeoutMS: 90000 // Increased timeout for retry
+                });
                 console.log('Connected to MongoDB successfully on retry');
             } catch (retryError) {
                 console.error('MongoDB retry connection failed:', retryError);
