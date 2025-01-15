@@ -1422,7 +1422,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/credits', creditsRoutes);
-const upload = multer();
 app.use('/api/ipn', upload.none(), ipnRouter);
 
 const startServer = async (initialPort = 3005) => {
