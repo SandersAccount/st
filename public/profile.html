@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - AI Image Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .profile-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+
+        .profile-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+
+        .profile-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            font-size: 1rem;
+            color: #666;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .profile-tab:hover {
+            background: #f5f5f5;
+        }
+
+        .profile-tab.active {
+            color: #4CAF50;
+            font-weight: 500;
+            background: #e8f5e9;
+        }
+
+        .profile-section {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .profile-section.active {
+            display: block;
+        }
+
+        .info-field {
+            margin-bottom: 1.5rem;
+        }
+
+        .info-field label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .field-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .field-value {
+            flex: 1;
+            color: #666;
+        }
+
+        .edit-btn, .add-btn, .modify-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .edit-btn:hover, .add-btn:hover, .modify-btn:hover {
+            background: #f5f5f5;
+        }
+
+        .subscription-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .subscription-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .subscription-card h3 {
+            margin: 0 0 1rem 0;
+            color: #333;
+        }
+
+        .usage-details {
+            margin-bottom: 1.5rem;
+        }
+
+        .usage-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .usage-item:last-child {
+            border-bottom: none;
+        }
+
+        .usage-item label {
+            color: #666;
+        }
+
+        .usage-value {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .plan-features li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+            color: #666;
+        }
+
+        .plan-features li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+        }
+
+        .billing-details {
+            margin-bottom: 1.5rem;
+        }
+
+        .billing-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .billing-item:last-child {
+            border-bottom: none;
+        }
+
+        .billing-item label {
+            color: #666;
+        }
+
+        .billing-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .subscription-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .credits-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .about-credits {
+            color: #1976d2;
+            text-decoration: none;
+        }
+
+        .credits-amount {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .leaf-icon {
+            font-size: 2rem;
+        }
+
+        .amount {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .credits-alert {
+            background: #fff3e0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .alert-icon {
+            font-size: 1.2rem;
+        }
+
+        .alert-note {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .credits-details {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .records-filter {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .credits-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .credits-table th,
+        .credits-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .credits-table th {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .credits-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #43A047;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f5;
+        }
+
+        /* Credit packages modal */
+        .credit-packages {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .credit-package {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .credit-package:hover {
+            transform: translateY(-2px);
+        }
+
+        .credit-package.selected {
+            border: 2px solid #4CAF50;
+        }
+
+        .package-credits {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .package-price {
+            font-size: 1.5rem;
+            color: #4CAF50;
+            margin-bottom: 1rem;
+        }
+
+        .package-discount {
+            color: #f44336;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .package-select-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .package-select-btn:hover {
+            background: #43A047;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+    <div class="profile-container">
+        <div class="profile-tabs">
+            <button class="profile-tab active">Personal Info</button>
+            <button class="profile-tab">Subscription</button>
+            <button class="profile-tab">Credits</button>
+        </div>
+
+        <div class="profile-content">
+            <!-- Personal Info Section -->
+            <div class="profile-section personal-info active">
+                <h2>Personal Info</h2>
+                <div class="info-field">
+                    <label>Name</label>
+                    <div class="field-content">
+                        <span class="field-value name-value"></span>
+                        <button class="edit-btn">Edit</button>
+                    </div>
+                </div>
+                <div class="info-field">
+                    <label>Email</label>
+                    <div class="field-content">
+                        <span class="field-value email-value"></span>
+                    </div>
+                </div>
+                <div class="info-field">
+                    <label>Role</label>
+                    <div class="field-content">
+                        <span class="field-value role-value"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subscription Section -->
+            <div class="profile-section subscription">
+                <h2>Your Plan <span class="status-badge active">ACTIVE</span></h2>
+                <div class="subscription-grid">
+                    <div class="subscription-card">
+                        <h3>Usage Details</h3>
+                        <div class="usage-details">
+                            <div class="usage-item">
+                                <label>Credits</label>
+                                <div class="usage-value">
+                                    <span class="remaining-credits">0</span>
+                                    <span>Credits</span>
+                                </div>
+                            </div>
+                            <div class="usage-item">
+                                <label>Plan</label>
+                                <div class="usage-value plan-value">Free</div>
+                            </div>
+                            <div class="usage-item">
+                                <label>Status</label>
+                                <div class="usage-value status-value">Active</div>
+                            </div>
+                        </div>
+                        <button class="btn-primary buy-credits-btn">Buy more credits</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credits Section -->
+            <div class="profile-section credits">
+                <div class="credits-header">
+                    <h2>My Credits</h2>
+                    <a href="#" class="about-credits">About Credits?</a>
+                </div>
+                <div class="credits-amount">
+                    <div class="leaf-icon">🍃</div>
+                    <span class="amount credits-value">0</span>
+                    <button class="btn-primary buy-credits-btn">Buy Credits</button>
+                </div>
+                <div class="credits-details">
+                    <div class="details-header">
+                        <h3>Credits History</h3>
+                        <select class="records-filter">
+                            <option value="all">All records</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <table class="credits-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Credits</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="creditsHistory">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/topbar.js"></script>
+    <script>
+        // Credit package options
+        const creditPackages = [
+            { id: 'basic', credits: 100, price: 10, discount: 0 },
+            { id: 'standard', credits: 500, price: 45, discount: 10 },
+            { id: 'pro', credits: 1000, price: 80, discount: 20 },
+            { id: 'enterprise', credits: 5000, price: 350, discount: 30 }
+        ];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load user data
+            await loadUserData();
+
+            // Setup tab switching
+            const tabs = document.querySelectorAll('.profile-tab');
+            const sections = document.querySelectorAll('.profile-section');
+
+            tabs.forEach((tab, index) => {
+                tab.addEventListener('click', () => {
+                    // Remove active class from all tabs and sections
+                    tabs.forEach(t => t.classList.remove('active'));
+                    sections.forEach(s => s.classList.remove('active'));
+
+                    // Add active class to clicked tab and corresponding section
+                    tab.classList.add('active');
+                    sections[index].classList.add('active');
+                });
+            });
+
+            // Setup buy credits buttons
+            document.querySelectorAll('.buy-credits-btn').forEach(btn => {
+                btn.addEventListener('click', showCreditPackages);
+            });
+
+            // Load credits history
+            await loadCreditsHistory();
+        });
+
+        // Load user data
+        async function loadUserData() {
+            try {
+                const response = await fetch('/api/user/profile', {
+                    credentials: 'include'
+                });
+                const userData = await response.json();
+
+                // Update personal info
+                document.querySelector('.name-value').textContent = userData.name;
+                document.querySelector('.email-value').textContent = userData.email;
+                document.querySelector('.role-value').textContent = userData.role;
+
+                // Update subscription info
+                document.querySelector('.remaining-credits').textContent = userData.credits;
+                document.querySelector('.credits-value').textContent = userData.credits;
+                document.querySelector('.plan-value').textContent = userData.subscription?.plan || 'Free';
+                document.querySelector('.status-value').textContent = userData.subscription?.status || 'Active';
+
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+
+        // Load credits history
+        async function loadCreditsHistory() {
+            try {
+                const response = await fetch('/api/user/profile', {
+                    credentials: 'include'
+                });
+                const userData = await response.json();
+                const creditRequests = userData.creditRequests || [];
+
+                const historyTable = document.getElementById('creditsHistory');
+                historyTable.innerHTML = creditRequests.map(request => `
+                    <tr>
+                        <td>${new Date(request.requestedAt).toLocaleString()}</td>
+                        <td>Purchase</td>
+                        <td>${request.credits}</td>
+                        <td>${request.status}</td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading credits history:', error);
+            }
+        }
+
+        // Show credit packages modal
+        async function showCreditPackages() {
+            const selectedPackageId = await new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <h2>Select Credit Package</h2>
+                        <div class="credit-packages">
+                            ${creditPackages.map(pkg => `
+                                <div class="credit-package" data-id="${pkg.id}">
+                                    <div class="package-credits">${pkg.credits} Credits</div>
+                                    <div class="package-price">$${pkg.price}</div>
+                                    ${pkg.discount ? `
+                                        <div class="package-discount">${pkg.discount}% discount</div>
+                                    ` : ''}
+                                    <button class="package-select-btn">Select</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                // Add click handlers
+                modal.querySelectorAll('.credit-package').forEach(pkg => {
+                    pkg.addEventListener('click', () => {
+                        const id = pkg.dataset.id;
+                        document.body.removeChild(modal);
+                        resolve(id);
+                    });
+                });
+
+                // Close on outside click
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        document.body.removeChild(modal);
+                        resolve(null);
+                    }
+                });
+            });
+
+            if (selectedPackageId) {
+                const selectedPkg = creditPackages.find(pkg => pkg.id === selectedPackageId);
+                await requestCredits(selectedPkg);
+            }
+        }
+
+        // Request credits
+        async function requestCredits(creditPkg) {
+            try {
+                const response = await fetch('/api/credits/request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        credits: creditPkg.credits,
+                        price: creditPkg.price,
+                        discount: creditPkg.discount
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Credit request submitted successfully! Please wait for admin approval.');
+                    await loadCreditsHistory();
+                } else {
+                    throw new Error('Failed to submit credit request');
+                }
+            } catch (error) {
+                console.error('Error requesting credits:', error);
+                alert('Failed to submit credit request. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
