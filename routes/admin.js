@@ -249,4 +249,16 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
     }
 });
 
+router.post('/register', async (req, res) => {
+    const { email, password } = req.body;
+
+    // Check if the user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+        return res.status(400).json({ error: 'You need to purchase the StickerLab product to gain access.' });
+    }
+
+    // Proceed with registration logic (e.g., hashing password, saving user, etc.)
+});
+
 export default router;
