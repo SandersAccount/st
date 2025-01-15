@@ -250,7 +250,7 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
 });
 
 router.post('/register', async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, name } = req.body; // Include name in the registration data
 
     // Check if the user exists
     const user = await User.findOne({ email });
@@ -260,6 +260,10 @@ router.post('/register', async (req, res) => {
         if (!stickerLabPurchase) {
             return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
         }
+    } else {
+        // Update the user's name
+        user.name = name; // Update with the new name from registration
+        await user.save();
     }
 
     // Proceed with registration logic (e.g., hashing password, saving user, etc.)
