@@ -1,6 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import auth from '../middleware/auth.js';
+import adminAuth from '../middleware/adminAuth.js';
 import mongoose from '../config/database.js';
 
 const router = express.Router();
@@ -96,12 +97,8 @@ router.get('/history', auth, async (req, res) => {
 });
 
 // Admin: Get all credit requests
-router.get('/requests', auth, async (req, res) => {
+router.get('/requests', [auth, adminAuth], async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
-
         console.log('Fetching credit requests for admin:', req.user._id);
 
         const users = await User.find({ 'creditRequests.status': 'pending' })
@@ -142,28 +139,27 @@ router.get('/requests', auth, async (req, res) => {
 });
 
 // Admin: Approve credit request
-router.post('/approve/:requestId', auth, async (req, res) => {
+router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
     try {
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({ error: 'Unauthorized' });
-        }
+        console.log('Processing credit request approval:', req.params.requestId);
 
         const requestId = req.params.requestId;
-        if (!requestId) {
-            return res.status(400).json({ error: 'Request ID is required' });
+        if (!requestId || !mongoose.Types.ObjectId.isValid(requestId)) {
+            console.log('Invalid request ID:', requestId);
+            return res.status(400).json({ error: 'Invalid request ID' });
         }
-
-        console.log('Processing credit request approval:', requestId);
 
         // Find user with this credit request
         const user = await User.findOne({
-            'creditRequests._id': requestId
+            'creditRequests._id': new mongoose.Types.ObjectId(requestId)
         });
 
         if (!user) {
             console.log('Credit request not found');
             return res.status(404).json({ error: 'Credit request not found' });
         }
+
+        console.log('Found user:', user._id);
 
         // Find the specific credit request
         const creditRequest = user.creditRequests.find(
@@ -174,6 +170,8 @@ router.post('/approve/:requestId', auth, async (req, res) => {
             console.log('Credit request not found in user document');
             return res.status(404).json({ error: 'Credit request not found' });
         }
+
+        console.log('Found credit request:', creditRequest);
 
         if (creditRequest.status !== 'pending') {
             console.log('Credit request already processed');

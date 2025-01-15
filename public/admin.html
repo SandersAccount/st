@@ -417,7 +417,7 @@
                         throw new Error('Request ID is missing');
                     }
 
-                    const response = await fetch(`/api/admin/credits/approve/${requestId}`, {
+                    const response = await fetch(`/api/credits/approve/${requestId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
