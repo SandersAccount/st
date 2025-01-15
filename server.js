@@ -292,35 +292,7 @@ app.get('/login', (req, res) => {
     res.sendFile(join(__dirname, 'login.html'));
 });
 
-app.get('/register', (req, res) => {
-    res.sendFile(join(__dirname, 'register.html'));
-});
 
-// Auth API endpoints
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { name, email, password } = req.body;
-
-        // Check if user already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email already registered' });
-        }
-
-        // Create new user
-        const user = new User({
-            name,
-            email,
-            password
-        });
-
-        await user.save();
-        res.status(201).json({ message: 'Registration successful' });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Registration failed' });
-    }
-});
 
 app.post('/api/auth/login', async (req, res) => {
     try {
