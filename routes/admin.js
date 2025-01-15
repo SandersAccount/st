@@ -254,8 +254,19 @@ router.post('/register', async (req, res) => {
 
     // Check if the email was used to purchase StickerLab
     const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+
+    // If the email does not correspond to a purchase, return an error
     if (!stickerLabPurchase) {
         return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
+    }
+
+    // If the user already exists, allow registration without alerts
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        // If the user exists, we can allow registration without alerts
+        existingUser.name = name; // Update the name if needed
+        await existingUser.save();
+        return res.status(200).json({ message: 'Registration successful!' });
     }
 
     // Create the new user with the provided name
