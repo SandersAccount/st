@@ -27,6 +27,7 @@ import fs from 'fs';
 import bcrypt from 'bcrypt';
 import { localStyleStorage } from './utils/localStyleStorage.js';
 import axios from 'axios';
+import ipnRouter from './routes/ipn';
 
 // Load environment variables
 dotenv.config();
@@ -1421,6 +1422,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/credits', creditsRoutes);
+app.use('/api/ipn', ipnRouter);
 
 const startServer = async (initialPort = 3005) => {
     const findAvailablePort = async (startPort) => {

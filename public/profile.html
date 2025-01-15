@@ -358,6 +358,53 @@
         .select-button:hover {
             background: #43A047;
         }
+
+        .credits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .credit-package {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .credit-package h3 {
+            margin: 0 0 1rem 0;
+            color: #333;
+        }
+
+        .credit-package .price {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4CAF50;
+            margin: 1rem 0;
+        }
+
+        .btn-purchase {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .btn-purchase:hover {
+            background: #388E3C;
+        }
+
+        .credits-note {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -432,6 +479,32 @@
                     <div class="leaf-icon">🍃</div>
                     <span class="amount credits-value">0</span>
                     <button class="btn-primary buy-credits-btn">Buy Credits</button>
+                </div>
+                <div class="credits-section">
+                    <h2>Purchase Credits</h2>
+                    <div class="credits-grid">
+                        <div class="credit-package">
+                            <h3>100 Credits</h3>
+                            <p class="price">$10</p>
+                            <a href="https://warriorplus.com/o2/buy/xxx/product_100" class="btn-purchase">Purchase</a>
+                        </div>
+                        <div class="credit-package">
+                            <h3>200 Credits</h3>
+                            <p class="price">$18</p>
+                            <a href="https://warriorplus.com/o2/buy/xxx/product_200" class="btn-purchase">Purchase</a>
+                        </div>
+                        <div class="credit-package">
+                            <h3>500 Credits</h3>
+                            <p class="price">$40</p>
+                            <a href="https://warriorplus.com/o2/buy/xxx/product_500" class="btn-purchase">Purchase</a>
+                        </div>
+                        <div class="credit-package">
+                            <h3>1000 Credits</h3>
+                            <p class="price">$70</p>
+                            <a href="https://warriorplus.com/o2/buy/xxx/product_1000" class="btn-purchase">Purchase</a>
+                        </div>
+                    </div>
+                    <p class="credits-note">* Credits will be added to your account automatically after purchase</p>
                 </div>
                 <div class="credits-details">
                     <div class="details-header">
