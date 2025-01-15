@@ -246,28 +246,40 @@
                     const response = await fetch('/api/admin/stats', {
                         credentials: 'include'
                     });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to load stats');
+                    }
+
                     const data = await response.json();
+                    console.log('Stats data:', data);
                     
                     // Update total users
-                    document.getElementById('totalUsers').textContent = data.users.total || 0;
+                    document.getElementById('totalUsers').textContent = data.users?.total || 0;
 
-                    // Update pro users
-                    const proStats = data.subscriptions.find(s => s._id === 'pro') || { active: 0 };
+                    // Update pro users - with null check
+                    const subscriptions = data.subscriptions || [];
+                    const proStats = subscriptions.find(s => s?._id === 'pro') || { active: 0 };
                     document.getElementById('proUsers').textContent = proStats.active;
 
                     // Update credits
-                    document.getElementById('totalCredits').textContent = data.credits.total.toLocaleString();
+                    const credits = data.credits || { total: 0, average: 0 };
+                    document.getElementById('totalCredits').textContent = credits.total.toLocaleString();
                     document.getElementById('avgCredits').textContent = 
-                        `Average ${Math.round(data.credits.average)} per user`;
+                        `Average ${Math.round(credits.average)} per user`;
 
-                    // Update pending requests
-                    const pendingStats = data.creditRequests.find(r => r._id === 'pending') || { count: 0, totalCredits: 0 };
+                    // Update pending requests - with null check
+                    const creditRequests = data.creditRequests || [];
+                    const pendingStats = creditRequests.find(r => r?._id === 'pending') || { count: 0, totalCredits: 0 };
                     document.getElementById('pendingRequests').textContent = pendingStats.count;
                     document.getElementById('pendingCredits').textContent = 
                         pendingStats.count > 0 ? `${pendingStats.totalCredits.toLocaleString()} credits requested` : 'No pending requests';
 
                 } catch (error) {
                     console.error('Error loading stats:', error);
+                    // Show error in the UI
+                    document.querySelectorAll('.value').forEach(el => el.textContent = 'Error');
+                    document.querySelectorAll('.subtext').forEach(el => el.textContent = '');
                 }
             }
 
@@ -400,6 +412,11 @@
             async function approveCredits(userId, credits, requestId) {
                 try {
                     console.log('Approving credits:', { userId, credits, requestId });
+                    
+                    if (!requestId) {
+                        throw new Error('Request ID is missing');
+                    }
+
                     const response = await fetch(`/api/admin/credits/approve/${requestId}`, {
                         method: 'POST',
                         headers: {
@@ -410,6 +427,7 @@
 
                     if (!response.ok) {
                         const error = await response.json();
+                        console.error('Server error:', error);
                         throw new Error(error.error || 'Failed to approve credits');
                     }
 
@@ -417,9 +435,9 @@
                     console.log('Credits approved successfully:', result);
                     
                     alert('Credits approved successfully!');
-                    loadCreditRequests();
-                    loadUsers();
-                    loadStats();
+                    await loadCreditRequests();
+                    await loadUsers();
+                    await loadStats();
                 } catch (error) {
                     console.error('Error approving credits:', error);
                     alert(error.message || 'Failed to approve credits');

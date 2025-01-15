@@ -146,8 +146,20 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
         creditRequest.approvedBy = req.user._id;
 
         // Add credits to user's account
-        user.credits = (user.credits || 0) + creditRequest.credits;
+        const currentCredits = user.credits || 0;
+        const requestedCredits = creditRequest.credits || 0;
+        user.credits = currentCredits + requestedCredits;
 
+        console.log('Updating user credits:', {
+            userId: user._id,
+            currentCredits,
+            requestedCredits,
+            newTotal: user.credits
+        });
+
+        // Mark the credit request as modified
+        user.markModified('creditRequests');
+        
         await user.save();
         console.log('Credit request approved successfully');
 
