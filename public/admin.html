@@ -367,25 +367,19 @@
             // Load credit requests
             async function loadCreditRequests() {
                 try {
-                    const response = await fetch('/api/admin/users', {
+                    const response = await fetch('/api/credits/requests', {
                         credentials: 'include'
                     });
-                    const data = await response.json();
-                    const users = data.users || [];
                     
-                    const requests = users.reduce((acc, user) => {
-                        const pendingRequests = (user.creditRequests || [])
-                            .filter(req => req.status === 'pending')
-                            .map(req => ({
-                                ...req,
-                                userName: user.name,
-                                userId: user._id
-                            }));
-                        return [...acc, ...pendingRequests];
-                    }, []);
+                    if (!response.ok) {
+                        throw new Error('Failed to load credit requests');
+                    }
+                    
+                    const requests = await response.json();
+                    console.log('Loaded credit requests:', requests);
                     
                     const requestsList = document.getElementById('creditRequestsList');
-                    if (requests.length === 0) {
+                    if (!requests || requests.length === 0) {
                         requestsList.innerHTML = '<p>No pending credit requests</p>';
                         return;
                     }
@@ -394,7 +388,9 @@
                         <div class="request-card">
                             <div class="request-info">
                                 <p><strong>${request.userName}</strong> requested ${request.credits} credits</p>
+                                <p>Email: ${request.userEmail}</p>
                                 <p>Requested at: ${new Date(request.requestedAt).toLocaleString()}</p>
+                                <p>Request ID: ${request._id}</p>
                             </div>
                             <div class="request-actions">
                                 <button onclick="approveCredits('${request.userId}', ${request.credits}, '${request._id}')" class="btn-small">
@@ -405,6 +401,8 @@
                     `).join('');
                 } catch (error) {
                     console.error('Error loading credit requests:', error);
+                    document.getElementById('creditRequestsList').innerHTML = 
+                        '<p class="error">Error loading credit requests. Please try again.</p>';
                 }
             }
 
