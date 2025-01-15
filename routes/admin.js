@@ -252,12 +252,6 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
 router.post('/register', async (req, res) => {
     const { email, password, name } = req.body; // Include name in the registration data
 
-    // Check if the user exists
-    const user = await User.findOne({ email });
-    if (user) {
-        return res.status(400).json({ error: 'Email already registered.' });
-    }
-
     // Check if the email was used to purchase StickerLab
     const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
     if (!stickerLabPurchase) {
