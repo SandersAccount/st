@@ -4,7 +4,7 @@ import auth from '../middleware/auth.js';
 import adminAuth from '../middleware/adminAuth.js';
 
 const router = express.Router();
-
+ 
 // Root endpoint
 router.get('/', [auth, adminAuth], async (req, res) => {
     res.json({
