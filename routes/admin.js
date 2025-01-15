@@ -19,40 +19,77 @@ router.get('/', [auth, adminAuth], async (req, res) => {
     });
 });
 
-// Get all users (with pagination and filters)
-router.get('/users', [auth, adminAuth], async (req, res) => {
+// Get admin stats
+router.get('/stats', [auth, adminAuth], async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        // Get total users
+        const totalUsers = await User.countDocuments();
+        
+        // Get pro users
+        const proUsers = await User.countDocuments({
+            'subscription.plan': 'pro',
+            'subscription.status': 'active'
+        });
 
-        const filter = {};
-        if (req.query.plan) filter['subscription.plan'] = req.query.plan;
-        if (req.query.status) filter['subscription.status'] = req.query.status;
+        // Get total credits
+        const creditsResult = await User.aggregate([
+            { $group: { _id: null, total: { $sum: '$credits' } } }
+        ]);
+        const totalCredits = creditsResult[0]?.total || 0;
 
-        console.log('Fetching users with filter:', filter);
+        // Get pending credits
+        const pendingResult = await User.aggregate([
+            { $unwind: '$creditRequests' },
+            { $match: { 'creditRequests.status': 'pending' } },
+            { $group: { _id: null, total: { $sum: '$creditRequests.credits' } } }
+        ]);
+        const pendingCredits = pendingResult[0]?.total || 0;
 
-        const users = await User.find(filter)
-            .select('-password')
-            .skip(skip)
-            .limit(limit)
-            .sort({ createdAt: -1 });
+        // Get total stickers
+        const stickersResult = await User.aggregate([
+            { $group: { _id: null, total: { $sum: '$usage.imagesGenerated' } } }
+        ]);
+        const totalStickers = stickersResult[0]?.total || 0;
 
-        const total = await User.countDocuments(filter);
-
-        console.log(`Found ${total} users`);
+        // Get total presets
+        const presetsResult = await User.aggregate([
+            { $group: { _id: null, total: { $sum: '$usage.savedPresets' } } }
+        ]);
+        const totalPresets = presetsResult[0]?.total || 0;
 
         res.json({
-            users,
-            pagination: {
-                total,
-                page,
-                pages: Math.ceil(total / limit)
+            users: {
+                total: totalUsers,
+                pro: proUsers
+            },
+            credits: {
+                total: totalCredits,
+                pending: pendingCredits
+            },
+            stickers: {
+                total: totalStickers
+            },
+            presets: {
+                total: totalPresets
             }
         });
     } catch (error) {
-        console.error('Get users error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error getting admin stats:', error);
+        res.status(500).json({ error: 'Failed to get admin stats' });
+    }
+});
+
+// Get all users
+router.get('/users', [auth, adminAuth], async (req, res) => {
+    try {
+        const users = await User.find()
+            .select('-password')
+            .sort('-createdAt');
+        
+        res.json({ users });
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ error: 'Failed to get users' });
     }
 });
 
@@ -76,32 +113,60 @@ router.get('/users/:userId', [auth, adminAuth], async (req, res) => {
 // Update user
 router.put('/users/:userId', [auth, adminAuth], async (req, res) => {
     try {
-        console.log('Updating user with ID:', req.params.userId);
-        const { role, subscription, credits } = req.body;
-        const user = await User.findById(req.params.userId);
-        
+        const { userId } = req.params;
+        const { role, credits } = req.body;
+
+        const user = await User.findById(userId);
         if (!user) {
-            console.log('User not found');
             return res.status(404).json({ error: 'User not found' });
         }
 
-        if (role) user.role = role;
-        if (subscription) {
-            user.subscription = {
-                ...user.subscription,
-                ...subscription
-            };
+        // Update role if provided
+        if (role) {
+            if (role !== 'admin' && role !== 'user') {
+                return res.status(400).json({ error: 'Invalid role' });
+            }
+            user.role = role;
         }
-        if (credits !== undefined) {
-            user.credits = credits;
+
+        // Update credits if provided
+        if (credits) {
+            const amount = parseInt(credits);
+            if (isNaN(amount)) {
+                return res.status(400).json({ error: 'Invalid credits amount' });
+            }
+
+            user.credits = (user.credits || 0) + amount;
+            
+            // Add to credit history
+            if (!user.creditHistory) {
+                user.creditHistory = [];
+            }
+            
+            user.creditHistory.push({
+                type: 'admin',
+                amount: amount,
+                details: `Credits added by admin`,
+                timestamp: new Date()
+            });
+            
+            user.markModified('creditHistory');
         }
 
         await user.save();
-        console.log('User updated');
-        res.json(user);
+        res.json({ 
+            message: 'User updated successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                credits: user.credits
+            }
+        });
     } catch (error) {
-        console.error('Update user error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Failed to update user' });
     }
 });
 
@@ -181,110 +246,6 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
     } catch (error) {
         console.error('Credit approval error:', error);
         res.status(500).json({ error: 'Failed to approve credits: ' + error.message });
-    }
-});
-
-// Get system statistics
-router.get('/stats', [auth, adminAuth], async (req, res) => {
-    try {
-        console.log('Fetching system statistics');
-
-        // Get user counts by role
-        const usersByRole = await User.aggregate([
-            {
-                $group: {
-                    _id: '$role',
-                    count: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // Get total users
-        const totalUsers = usersByRole.reduce((acc, curr) => acc + curr.count, 0);
-
-        // Get subscription stats with default values
-        const subscriptionStats = await User.aggregate([
-            {
-                $group: {
-                    _id: { 
-                        plan: { $ifNull: ['$subscription.plan', 'free'] },
-                        status: { $ifNull: ['$subscription.status', 'active'] }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            {
-                $group: {
-                    _id: '$_id.plan',
-                    count: { $sum: '$count' },
-                    active: {
-                        $sum: {
-                            $cond: [{ $eq: ['$_id.status', 'active'] }, '$count', 0]
-                        }
-                    }
-                }
-            }
-        ]);
-
-        // Get credit stats
-        const creditStats = await User.aggregate([
-            {
-                $group: {
-                    _id: null,
-                    totalCredits: { $sum: { $ifNull: ['$credits', 0] } },
-                    totalUsers: { $sum: 1 }
-                }
-            }
-        ]);
-
-        // Get credit request stats
-        const creditRequestStats = await User.aggregate([
-            {
-                $unwind: {
-                    path: '$creditRequests',
-                    preserveNullAndEmptyArrays: true
-                }
-            },
-            {
-                $group: {
-                    _id: { $ifNull: ['$creditRequests.status', 'none'] },
-                    count: { $sum: 1 },
-                    totalCredits: { 
-                        $sum: { 
-                            $ifNull: ['$creditRequests.credits', 0] 
-                        } 
-                    }
-                }
-            }
-        ]);
-
-        console.log('Statistics fetched successfully');
-        
-        res.json({
-            users: {
-                byRole: usersByRole,
-                total: totalUsers
-            },
-            subscriptions: subscriptionStats.map(stat => ({
-                ...stat,
-                _id: stat._id || 'free',
-                count: stat.count || 0,
-                active: stat.active || 0
-            })),
-            credits: {
-                total: creditStats[0]?.totalCredits || 0,
-                average: creditStats[0] ? creditStats[0].totalCredits / creditStats[0].totalUsers : 0
-            },
-            creditRequests: creditRequestStats.map(stat => ({
-                ...stat,
-                _id: stat._id || 'none',
-                count: stat.count || 0,
-                totalCredits: stat.totalCredits || 0
-            }))
-        });
-    } catch (error) {
-        console.error('Get stats error:', error);
-        res.status(500).json({ error: 'Failed to fetch statistics' });
     }
 });
 

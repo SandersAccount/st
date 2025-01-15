@@ -254,32 +254,18 @@
                     const data = await response.json();
                     console.log('Stats data:', data);
                     
-                    // Update total users
-                    document.getElementById('totalUsers').textContent = data.users?.total || 0;
-
-                    // Update pro users - with null check
-                    const subscriptions = data.subscriptions || [];
-                    const proStats = subscriptions.find(s => s?._id === 'pro') || { active: 0 };
-                    document.getElementById('proUsers').textContent = proStats.active;
-
-                    // Update credits
-                    const credits = data.credits || { total: 0, average: 0 };
-                    document.getElementById('totalCredits').textContent = credits.total.toLocaleString();
-                    document.getElementById('avgCredits').textContent = 
-                        `Average ${Math.round(credits.average)} per user`;
-
-                    // Update pending requests - with null check
-                    const creditRequests = data.creditRequests || [];
-                    const pendingStats = creditRequests.find(r => r?._id === 'pending') || { count: 0, totalCredits: 0 };
-                    document.getElementById('pendingRequests').textContent = pendingStats.count;
-                    document.getElementById('pendingCredits').textContent = 
-                        pendingStats.count > 0 ? `${pendingStats.totalCredits.toLocaleString()} credits requested` : 'No pending requests';
+                    // Update stats with null checks
+                    document.getElementById('totalUsers').textContent = data?.users?.total || 0;
+                    document.getElementById('proUsers').textContent = data?.users?.pro || 0;
+                    document.getElementById('totalCredits').textContent = data?.credits?.total || 0;
+                    document.getElementById('pendingCredits').textContent = data?.credits?.pending || 0;
 
                 } catch (error) {
                     console.error('Error loading stats:', error);
-                    // Show error in the UI
-                    document.querySelectorAll('.value').forEach(el => el.textContent = 'Error');
-                    document.querySelectorAll('.subtext').forEach(el => el.textContent = '');
+                    // Show error state
+                    ['totalUsers', 'proUsers', 'totalCredits', 'pendingCredits'].forEach(id => {
+                        document.getElementById(id).textContent = '-';
+                    });
                 }
             }
 
@@ -420,6 +406,7 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
+                        body: JSON.stringify({ userId, credits }),
                         credentials: 'include'
                     });
 
