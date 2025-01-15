@@ -326,26 +326,26 @@
             border: 2px solid #4CAF50;
         }
 
-        .package-credits {
+        .credits-amount {
             font-size: 2rem;
             font-weight: 600;
             color: #333;
             margin-bottom: 0.5rem;
         }
 
-        .package-price {
+        .price-amount {
             font-size: 1.5rem;
             color: #4CAF50;
             margin-bottom: 1rem;
         }
 
-        .package-discount {
+        .discount-amount {
             color: #f44336;
             font-size: 0.9rem;
             margin-bottom: 1rem;
         }
 
-        .package-select-btn {
+        .select-button {
             width: 100%;
             padding: 0.75rem;
             border: none;
@@ -355,7 +355,7 @@
             cursor: pointer;
         }
 
-        .package-select-btn:hover {
+        .select-button:hover {
             background: #43A047;
         }
     </style>
@@ -557,16 +557,19 @@
                     <div class="modal-content">
                         <h2>Select Credit Package</h2>
                         <div class="credit-packages">
-                            ${creditPackages.map(pkg => `
-                                <div class="credit-package" data-id="${pkg.id}">
-                                    <div class="package-credits">${pkg.credits} Credits</div>
-                                    <div class="package-price">$${pkg.price}</div>
-                                    ${pkg.discount ? `
-                                        <div class="package-discount">${pkg.discount}% discount</div>
+                            ${creditPackages.map(item => `
+                                <div class="credit-package" data-id="${item.id}">
+                                    <div class="credits-amount">${item.credits} Credits</div>
+                                    <div class="price-amount">$${item.price}</div>
+                                    ${item.discount ? `
+                                        <div class="discount-amount">${item.discount}% discount</div>
                                     ` : ''}
-                                    <button class="package-select-btn">Select</button>
+                                    <button class="select-button">Select</button>
                                 </div>
                             `).join('')}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="close-button">Cancel</button>
                         </div>
                     </div>
                 `;
@@ -574,17 +577,17 @@
                 document.body.appendChild(modal);
 
                 // Add click handlers
-                modal.querySelectorAll('.credit-package').forEach(pkg => {
-                    pkg.addEventListener('click', () => {
-                        const id = pkg.dataset.id;
+                modal.querySelectorAll('.credit-package').forEach(element => {
+                    element.addEventListener('click', () => {
+                        const id = element.dataset.id;
                         document.body.removeChild(modal);
                         resolve(id);
                     });
                 });
 
-                // Close on outside click
+                // Close on outside click or cancel
                 modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
+                    if (e.target === modal || e.target.classList.contains('close-button')) {
                         document.body.removeChild(modal);
                         resolve(null);
                     }
@@ -592,13 +595,15 @@
             });
 
             if (selectedPackageId) {
-                const selectedPkg = creditPackages.find(pkg => pkg.id === selectedPackageId);
-                await requestCredits(selectedPkg);
+                const selectedItem = creditPackages.find(item => item.id === selectedPackageId);
+                if (selectedItem) {
+                    await requestCredits(selectedItem);
+                }
             }
         }
 
         // Request credits
-        async function requestCredits(creditPkg) {
+        async function requestCredits(selectedItem) {
             try {
                 const response = await fetch('/api/credits/request', {
                     method: 'POST',
@@ -607,21 +612,23 @@
                     },
                     credentials: 'include',
                     body: JSON.stringify({
-                        credits: creditPkg.credits,
-                        price: creditPkg.price,
-                        discount: creditPkg.discount
+                        credits: selectedItem.credits,
+                        price: selectedItem.price,
+                        discount: selectedItem.discount
                     })
                 });
 
-                if (response.ok) {
-                    alert('Credit request submitted successfully! Please wait for admin approval.');
-                    await loadCreditsHistory();
-                } else {
-                    throw new Error('Failed to submit credit request');
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to submit credit request');
                 }
+
+                const result = await response.json();
+                alert('Credit request submitted successfully! Please wait for admin approval.');
+                await loadCreditsHistory();
             } catch (error) {
                 console.error('Error requesting credits:', error);
-                alert('Failed to submit credit request. Please try again.');
+                alert(error.message || 'Failed to submit credit request. Please try again.');
             }
         }
     </script>
