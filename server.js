@@ -27,7 +27,7 @@ import fs from 'fs';
 import bcrypt from 'bcrypt';
 import { localStyleStorage } from './utils/localStyleStorage.js';
 import axios from 'axios';
-import ipnRouter from './routes/ipn';
+import ipnRouter from './routes/ipn.js';
 
 // Load environment variables
 dotenv.config();
