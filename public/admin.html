@@ -399,6 +399,10 @@
                         throw new Error('Request ID is missing');
                     }
 
+                    if (!userId) {
+                        throw new Error('User ID is missing');
+                    }
+
                     const response = await fetch(`/api/credits/approve/${requestId}`, {
                         method: 'POST',
                         headers: {
@@ -409,7 +413,8 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error('Failed to approve credits');
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to approve credits');
                     }
 
                     const result = await response.json();
@@ -421,7 +426,7 @@
                     await loadStats();
                 } catch (error) {
                     console.error('Error approving credits:', error);
-                    alert('Failed to approve credits. Please try again.');
+                    alert(error.message || 'Failed to approve credits. Please try again.');
                 }
             }
 
