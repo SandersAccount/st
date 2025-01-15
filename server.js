@@ -72,7 +72,10 @@ const authMiddleware = async (req, res, next) => {
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:3005',
+    origin: [
+        'http://localhost:3005',
+        'https://sticker-app-xcap.onrender.com'
+    ],
     credentials: true
 }));
 app.use(express.json());
@@ -1441,7 +1444,10 @@ const startServer = async (initialPort = 3005) => {
             console.log(`Server running at http://localhost:${port}`);
             // Update CORS origin to match the new port
             app.use(cors({
-                origin: `http://localhost:${port}`,
+                origin: [
+                    `http://localhost:${port}`,
+                    'https://sticker-app-xcap.onrender.com'
+                ],
                 credentials: true
             }));
         });
