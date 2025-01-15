@@ -142,28 +142,54 @@ router.get('/requests', [auth, adminAuth], async (req, res) => {
 router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
     try {
         const requestId = req.params.requestId;
-        console.log('Processing credit request approval:', requestId);
+        console.log('Processing credit request approval:', { 
+            requestId,
+            adminId: req.user._id,
+            body: req.body 
+        });
 
         // First find the user with this pending request
         const user = await User.findOne({ 
             'creditRequests': { 
                 $elemMatch: { 
-                    '_id': requestId,
+                    '_id': new mongoose.Types.ObjectId(requestId),
                     'status': 'pending'
                 }
             }
         });
 
         if (!user) {
-            console.log('No user found with this pending request');
+            console.log('No user found with this pending request:', {
+                requestId,
+                query: {
+                    'creditRequests': { 
+                        $elemMatch: { 
+                            '_id': new mongoose.Types.ObjectId(requestId),
+                            'status': 'pending'
+                        }
+                    }
+                }
+            });
             return res.status(404).json({ error: 'Credit request not found' });
         }
+
+        console.log('Found user:', {
+            userId: user._id,
+            creditRequests: user.creditRequests.map(r => ({
+                id: r._id.toString(),
+                status: r.status,
+                credits: r.credits
+            }))
+        });
 
         // Find the request in the user's creditRequests array
         const creditRequest = user.creditRequests.find(r => r._id.toString() === requestId);
         
         if (!creditRequest) {
-            console.log('Request not found in user document');
+            console.log('Request not found in user document:', {
+                requestId,
+                availableRequests: user.creditRequests.map(r => r._id.toString())
+            });
             return res.status(404).json({ error: 'Credit request not found' });
         }
 
@@ -196,7 +222,13 @@ router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
             userId: user._id,
             requestId: creditRequest._id,
             credits: creditRequest.credits,
-            newBalance: user.credits
+            newBalance: user.credits,
+            history: user.creditHistory.length,
+            requests: user.creditRequests.map(r => ({
+                id: r._id.toString(),
+                status: r.status,
+                credits: r.credits
+            }))
         });
 
         res.json({
