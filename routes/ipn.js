@@ -44,10 +44,15 @@ router.post('/credits/notification', async (req, res) => {
         } = req.body;
 
         // Find user by email
-        const user = await User.findOne({ email: WP_BUYER_EMAIL });
+        let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
-            console.error('User not found:', WP_BUYER_EMAIL);
-            return res.status(404).json({ error: 'User not found' });
+            // Create a new user if not found
+            user = new User({
+                email: WP_BUYER_EMAIL,
+                // Add other necessary fields, like a default password or username
+            });
+            await user.save();
+            console.log('New user created:', user);
         }
 
         // Get credit amount from product ID
