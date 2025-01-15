@@ -255,7 +255,11 @@ router.post('/register', async (req, res) => {
     // Check if the user exists
     const user = await User.findOne({ email });
     if (!user) {
-        return res.status(400).json({ error: 'You need to purchase the StickerLab product to gain access.' });
+        // Check if the email was used to purchase StickerLab
+        const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+        if (!stickerLabPurchase) {
+            return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
+        }
     }
 
     // Proceed with registration logic (e.g., hashing password, saving user, etc.)
