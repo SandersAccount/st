@@ -27,21 +27,26 @@ const router = express.Router();
 router.post('/credits/notification', async (req, res) => {
     try {
         console.log('Received IPN notification:', req.body);
-        console.log('IPN Request Body:', req.body);
-
-        // Validate security key
-        if (!validateIPN(req.body.WP_SECURITYKEY)) {
-            console.error('Invalid security key');
-            return res.status(401).json({ error: 'Invalid security key' });
-        }
 
         const {
             WP_ACTION,
             WP_ITEM_NUMBER,
             WP_BUYER_EMAIL,
+            WP_SECURITYKEY,
             WP_PAYMENT_STATUS,
             WP_SALE
         } = req.body;
+
+        console.log('WP_ACTION:', WP_ACTION);
+        console.log('WP_ITEM_NUMBER:', WP_ITEM_NUMBER);
+        console.log('WP_BUYER_EMAIL:', WP_BUYER_EMAIL);
+        console.log('WP_SECURITYKEY:', WP_SECURITYKEY);
+
+        // Validate security key
+        if (!validateIPN(WP_SECURITYKEY)) {
+            console.error('Invalid security key');
+            return res.status(401).json({ error: 'Invalid security key' });
+        }
 
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
