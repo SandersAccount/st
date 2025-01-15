@@ -27,6 +27,7 @@ const router = express.Router();
 router.post('/credits/notification', async (req, res) => {
     try {
         console.log('Received IPN notification:', req.body);
+        console.log('IPN Request Body:', req.body);
 
         // Validate security key
         if (!validateIPN(req.body.WP_SECURITYKEY)) {
