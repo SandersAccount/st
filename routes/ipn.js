@@ -33,6 +33,7 @@ router.post('/credits/notification', async (req, res) => {
             WP_ACTION,
             WP_ITEM_NUMBER,
             WP_BUYER_EMAIL,
+            WP_BUYER_NAME,
             WP_SECURITYKEY,
             WP_PAYMENT_STATUS,
             WP_SALE
@@ -41,6 +42,7 @@ router.post('/credits/notification', async (req, res) => {
         console.log('WP_ACTION:', WP_ACTION);
         console.log('WP_ITEM_NUMBER:', WP_ITEM_NUMBER);
         console.log('WP_BUYER_EMAIL:', WP_BUYER_EMAIL);
+        console.log('WP_BUYER_NAME:', WP_BUYER_NAME);
         console.log('WP_SECURITYKEY:', WP_SECURITYKEY);
 
         // Validate security key
@@ -52,10 +54,19 @@ router.post('/credits/notification', async (req, res) => {
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
             // Create a new user if not found
-            user = new User({
-                email: WP_BUYER_EMAIL,
-                // Add other necessary fields, like a default password or username
-            });
+            if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
+                user = new User({
+                    email: WP_BUYER_EMAIL,
+                    name: WP_BUYER_NAME,
+                    password: 'defaultPassword', // Set a default password or handle as needed
+                    // Add other necessary fields
+                });
+            } else {
+                user = new User({
+                    email: WP_BUYER_EMAIL,
+                    // Add other necessary fields, like a default password or username
+                });
+            }
             await user.save();
             console.log('New user created:', user);
         }
