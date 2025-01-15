@@ -1,6 +1,5 @@
-const express = require('express');
-const router = express.Router();
-const User = require('../models/User');
+import express from 'express';
+import User from '../models/User.js';
 
 const SECURITY_KEY = 'aee9d742f80584ea6b183a6b45d262b';
 
@@ -24,6 +23,7 @@ const CREDIT_PRODUCTS = {
 };
 
 // Handle IPN notifications
+const router = express.Router();
 router.post('/credits/notification', async (req, res) => {
     try {
         console.log('Received IPN notification:', req.body);
