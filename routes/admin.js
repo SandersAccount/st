@@ -110,6 +110,11 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
     try {
         console.log('Processing credit request approval:', req.params.requestId);
         
+        if (!req.params.requestId) {
+            console.log('No request ID provided');
+            return res.status(400).json({ error: 'Request ID is required' });
+        }
+
         // Find the user with the credit request
         const user = await User.findOne({
             'creditRequests._id': req.params.requestId
@@ -121,7 +126,9 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
         }
 
         // Find the specific credit request
-        const creditRequest = user.creditRequests.id(req.params.requestId);
+        const creditRequest = user.creditRequests.find(
+            req => req._id.toString() === req.params.requestId
+        );
         
         if (!creditRequest) {
             console.log('Credit request not found in user document');
@@ -139,7 +146,7 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
         creditRequest.approvedBy = req.user._id;
 
         // Add credits to user's account
-        user.credits += creditRequest.credits;
+        user.credits = (user.credits || 0) + creditRequest.credits;
 
         await user.save();
         console.log('Credit request approved successfully');
@@ -161,7 +168,7 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
         });
     } catch (error) {
         console.error('Credit approval error:', error);
-        res.status(500).json({ error: 'Failed to approve credits' });
+        res.status(500).json({ error: 'Failed to approve credits: ' + error.message });
     }
 });
 
@@ -212,7 +219,7 @@ router.get('/stats', [auth, adminAuth], async (req, res) => {
             {
                 $group: {
                     _id: null,
-                    totalCredits: { $sum: '$credits' },
+                    totalCredits: { $sum: { $ifNull: ['$credits', 0] } },
                     totalUsers: { $sum: 1 }
                 }
             }

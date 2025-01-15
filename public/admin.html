@@ -399,26 +399,30 @@
             // Approve credits
             async function approveCredits(userId, credits, requestId) {
                 try {
+                    console.log('Approving credits:', { userId, credits, requestId });
                     const response = await fetch(`/api/admin/credits/approve/${requestId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        credentials: 'include',
-                        body: JSON.stringify({ userId, credits })
+                        credentials: 'include'
                     });
 
-                    if (response.ok) {
-                        alert('Credits approved successfully!');
-                        loadCreditRequests();
-                        loadUsers();
-                        loadStats();
-                    } else {
-                        throw new Error('Failed to approve credits');
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to approve credits');
                     }
+
+                    const result = await response.json();
+                    console.log('Credits approved successfully:', result);
+                    
+                    alert('Credits approved successfully!');
+                    loadCreditRequests();
+                    loadUsers();
+                    loadStats();
                 } catch (error) {
                     console.error('Error approving credits:', error);
-                    alert('Failed to approve credits');
+                    alert(error.message || 'Failed to approve credits');
                 }
             }
 
