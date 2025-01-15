@@ -1,7 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 
-const SECURITY_KEY = 'aee9d742f80584ea6b183a6b45d262b';
+const SECURITY_KEY = '4350c564f7cef14a92c7ff7ff9c6dce';
 
 // Helper function to validate IPN request
 function validateIPN(securityKey) {
