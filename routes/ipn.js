@@ -43,7 +43,6 @@ router.post('/credits/notification', async (req, res) => {
             WP_SALE
         } = req.body;
 
-        // Find user by email
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
             // Create a new user if not found
@@ -55,17 +54,20 @@ router.post('/credits/notification', async (req, res) => {
             console.log('New user created:', user);
         }
 
-        // Get credit amount from product ID
-        const credits = CREDIT_PRODUCTS[WP_ITEM_NUMBER];
-        if (!credits) {
-            console.error('Invalid product ID:', WP_ITEM_NUMBER);
-            return res.status(400).json({ error: 'Invalid product ID' });
+        if (WP_ITEM_NUMBER === 'wso_svyh7b') {
+            // Logic for handling StickerLab purchase
+            user.credits = (user.credits || 0) + 100; // Add 100 credits
+            console.log('User gained access to StickerLab and received 100 credits:', user.email);
+        } else if (WP_ITEM_NUMBER.startsWith('product_')) {
+            const credits = CREDIT_PRODUCTS[WP_ITEM_NUMBER];
+            if (credits) {
+                // Add credits to user's balance
+                user.credits = (user.credits || 0) + credits;
+                console.log('Credits added:', credits);
+            }
         }
 
         if (WP_ACTION === 'sale' && WP_PAYMENT_STATUS === 'Completed') {
-            // Add credits to user's balance
-            user.credits = (user.credits || 0) + credits;
-            
             // Add to credit history
             if (!user.creditHistory) {
                 user.creditHistory = [];
@@ -73,7 +75,7 @@ router.post('/credits/notification', async (req, res) => {
             
             user.creditHistory.push({
                 type: 'purchase',
-                amount: credits,
+                amount: user.credits,
                 transactionId: WP_SALE,
                 details: `Credit purchase via marketplace`,
                 timestamp: new Date()
@@ -84,7 +86,7 @@ router.post('/credits/notification', async (req, res) => {
             console.log('Credits added successfully:', {
                 userId: user._id,
                 email: user.email,
-                credits,
+                credits: user.credits,
                 newBalance: user.credits,
                 transactionId: WP_SALE
             });
