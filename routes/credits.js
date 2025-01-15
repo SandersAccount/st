@@ -142,14 +142,22 @@ router.get('/requests', [auth, adminAuth], async (req, res) => {
 router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
     try {
         const requestId = req.params.requestId;
+        const { userId, credits } = req.body;
         console.log('Processing credit request approval:', { 
             requestId,
-            adminId: req.user._id,
-            body: req.body 
+            userId,
+            credits,
+            adminId: req.user._id
         });
+
+        if (!requestId || !userId || !credits) {
+            console.log('Missing required fields:', { requestId, userId, credits });
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
 
         // First find the user with this pending request
         const user = await User.findOne({ 
+            '_id': userId,
             'creditRequests': { 
                 $elemMatch: { 
                     '_id': new mongoose.Types.ObjectId(requestId),
@@ -160,8 +168,10 @@ router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
 
         if (!user) {
             console.log('No user found with this pending request:', {
+                userId,
                 requestId,
                 query: {
+                    '_id': userId,
                     'creditRequests': { 
                         $elemMatch: { 
                             '_id': new mongoose.Types.ObjectId(requestId),
