@@ -141,121 +141,72 @@ router.get('/requests', [auth, adminAuth], async (req, res) => {
 // Admin: Approve credit request
 router.post('/approve/:requestId', [auth, adminAuth], async (req, res) => {
     try {
-        const requestId = req.params.requestId;
+        const { requestId } = req.params;
         const { userId, credits } = req.body;
-        console.log('Processing credit request approval:', { 
+
+        console.log('Processing credit request approval:', {
             requestId,
             userId,
             credits,
             adminId: req.user._id
         });
 
+        // Validate required fields
         if (!requestId || !userId || !credits) {
-            console.log('Missing required fields:', { requestId, userId, credits });
+            console.log('Missing required fields:', {
+                requestId,
+                userId,
+                credits
+            });
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // First find the user with this pending request
-        const user = await User.findOne({ 
-            '_id': userId,
-            'creditRequests': { 
-                $elemMatch: { 
-                    '_id': new mongoose.Types.ObjectId(requestId),
-                    'status': 'pending'
-                }
-            }
+        // Find user and update credit request status
+        const user = await User.findOne({
+            _id: userId,
+            'creditRequests._id': requestId,
+            'creditRequests.status': 'pending'
         });
 
         if (!user) {
-            console.log('No user found with this pending request:', {
-                userId,
-                requestId,
-                query: {
-                    '_id': userId,
-                    'creditRequests': { 
-                        $elemMatch: { 
-                            '_id': new mongoose.Types.ObjectId(requestId),
-                            'status': 'pending'
-                        }
-                    }
-                }
-            });
+            console.log('Credit request not found:', requestId);
             return res.status(404).json({ error: 'Credit request not found' });
         }
 
-        console.log('Found user:', {
-            userId: user._id,
-            creditRequests: user.creditRequests.map(r => ({
-                id: r._id.toString(),
-                status: r.status,
-                credits: r.credits
-            }))
-        });
-
-        // Find the request in the user's creditRequests array
-        const creditRequest = user.creditRequests.find(r => r._id.toString() === requestId);
-        
+        // Update the specific credit request
+        const creditRequest = user.creditRequests.id(requestId);
         if (!creditRequest) {
-            console.log('Request not found in user document:', {
-                requestId,
-                availableRequests: user.creditRequests.map(r => r._id.toString())
-            });
-            return res.status(404).json({ error: 'Credit request not found' });
+            console.log('Credit request not found in user document');
+            return res.status(404).json({ error: 'Credit request not found in user document' });
         }
 
-        // Update request status
         creditRequest.status = 'approved';
         creditRequest.approvedAt = new Date();
         creditRequest.approvedBy = req.user._id;
 
         // Add credits to user's balance
-        user.credits = (user.credits || 0) + creditRequest.credits;
+        user.credits = (user.credits || 0) + credits;
 
-        // Add to credit history
-        if (!user.creditHistory) {
-            user.creditHistory = [];
-        }
-
-        user.creditHistory.push({
-            type: 'purchase',
-            amount: creditRequest.credits,
-            details: `Credit purchase approved`,
-            timestamp: new Date()
-        });
-
-        // Save changes
-        user.markModified('creditRequests');
-        user.markModified('creditHistory');
         await user.save();
 
         console.log('Credit request approved successfully:', {
             userId: user._id,
-            requestId: creditRequest._id,
-            credits: creditRequest.credits,
-            newBalance: user.credits,
-            history: user.creditHistory.length,
-            requests: user.creditRequests.map(r => ({
-                id: r._id.toString(),
-                status: r.status,
-                credits: r.credits
-            }))
+            requestId,
+            credits,
+            newBalance: user.credits
         });
 
         res.json({
-            message: 'Credit request approved successfully',
-            user: {
-                id: user._id,
-                credits: user.credits,
-                request: {
-                    id: creditRequest._id,
-                    status: creditRequest.status,
-                    credits: creditRequest.credits
-                }
-            }
+            message: 'Credits approved successfully',
+            userId: user._id,
+            credits: user.credits
         });
     } catch (error) {
         console.error('Error approving credits:', error);
-        res.status(500).json({ error: 'Failed to approve credits' });
+        res.status(500).json({ 
+            error: 'Failed to approve credits',
+            details: error.message
+        });
     }
 });
 
