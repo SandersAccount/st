@@ -27,153 +27,6 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
-        .stat-card h3 {
-            margin: 0 0 1rem 0;
-            color: #666;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-        }
-
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .users-table {
-            width: 100%;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .users-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .users-table th,
-        .users-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-
-        .users-table th {
-            background: #f8f9fa;
-            font-weight: 500;
-            color: #666;
-        }
-
-        .users-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .badge-admin {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .badge-user {
-            background: #f5f5f5;
-            color: #666;
-        }
-
-        .badge-pro {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .badge-free {
-            background: #f5f5f5;
-            color: #666;
-        }
-
-        .actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .btn-small {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.85rem;
-            border-radius: 4px;
-            cursor: pointer;
-            border: 1px solid #ddd;
-            background: white;
-        }
-
-        .btn-small:hover {
-            background: #f5f5f5;
-        }
-
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-
-        .pagination button {
-            padding: 0.5rem 1rem;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .pagination button:hover {
-            background: #f5f5f5;
-        }
-
-        .pagination button.active {
-            background: #4CAF50;
-            color: white;
-            border-color: #4CAF50;
-        }
-
-        .tab-content {
-            margin-top: 2rem;
-        }
-
-        .users-list {
-            margin-bottom: 2rem;
-        }
-
-        .user-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 1rem;
-        }
-
-        .user-info {
-            margin-bottom: 1rem;
-        }
-
-        .user-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .credit-requests {
-            margin-top: 2rem;
-        }
-
-        #creditRequestsList {
-            margin-top: 1rem;
-        }
-
         .request-card {
             background: white;
             padding: 1.5rem;
@@ -188,7 +41,20 @@
 
         .request-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 1rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
         }
     </style>
 </head>
@@ -197,193 +63,250 @@
     <div class="admin-container">
         <h1>Admin Dashboard</h1>
         
-        <div class="stats-grid">
-            <div class="stat-card">
-                <h3>Total Users</h3>
-                <div id="totalUsers" class="value">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>Pro Subscriptions</h3>
-                <div id="proUsers" class="value">-</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total Generations</h3>
-                <div id="totalGenerations" class="value">-</div>
-            </div>
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be loaded here -->
         </div>
 
-        <div class="tab-content" id="usersContent">
-            <div class="users-list">
-                <!-- Users will be loaded here -->
-            </div>
-            <div class="credit-requests">
-                <h3>Credit Requests</h3>
-                <div id="creditRequestsList"></div>
-            </div>
+        <h2>Users</h2>
+        <div class="users-table" id="usersTable">
+            <!-- Users will be loaded here -->
         </div>
 
-        <script src="/topbar.js"></script>
-        <script>
-            let currentPage = 1;
-            const limit = 10;
-
-            // Load statistics
-            async function loadStats() {
-                try {
-                    const response = await fetch('/api/admin/stats', {
-                        credentials: 'include'
-                    });
-                    const data = await response.json();
-                    
-                    document.getElementById('totalUsers').textContent = data.users.total;
-                    document.getElementById('proUsers').textContent = 
-                        data.subscriptions.find(s => s._id === 'pro')?.active || 0;
-                    document.getElementById('totalGenerations').textContent = 
-                        data.usage.totalGenerations;
-                } catch (error) {
-                    console.error('Error loading stats:', error);
-                }
-            }
-
-            // Load users
-            async function loadUsers() {
-                try {
-                    const response = await fetch('/api/admin/users', {
-                        credentials: 'include'
-                    });
-                    const users = await response.json();
-                    
-                    const usersList = document.querySelector('.users-list');
-                    usersList.innerHTML = users.map(user => `
-                        <div class="user-card">
-                            <div class="user-info">
-                                <h3>${user.name}</h3>
-                                <p>${user.email}</p>
-                                <p>Credits: ${user.credits}</p>
-                                <p>Role: ${user.role}</p>
-                                <p>Plan: ${user.subscription.plan}</p>
-                            </div>
-                            <div class="user-actions">
-                                <button onclick="toggleUserRole('${user._id}', '${user.role}')">
-                                    ${user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-                                </button>
-                                <button onclick="sendCredits('${user._id}')">Send Credits</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } catch (error) {
-                    console.error('Error loading users:', error);
-                }
-            }
-
-            // Toggle user role
-            async function toggleUserRole(userId, currentRole) {
-                try {
-                    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-                    await fetch(`/api/admin/users/${userId}/status`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ role: newRole }),
-                        credentials: 'include'
-                    });
-                    
-                    loadUsers();
-                } catch (error) {
-                    console.error('Error updating role:', error);
-                }
-            }
-
-            // Send credits
-            async function sendCredits(userId) {
-                const credits = prompt('Enter number of credits to send:');
-                if (!credits) return;
-
-                try {
-                    const response = await fetch('/api/admin/credits/send', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({ userId, credits: parseInt(credits) })
-                    });
-
-                    if (response.ok) {
-                        alert('Credits sent successfully!');
-                        loadUsers();
-                    } else {
-                        throw new Error('Failed to send credits');
-                    }
-                } catch (error) {
-                    console.error('Error sending credits:', error);
-                    alert('Failed to send credits');
-                }
-            }
-
-            // Load credit requests
-            async function loadCreditRequests() {
-                try {
-                    const response = await fetch('/api/credits/requests', {
-                        credentials: 'include'
-                    });
-                    const requests = await response.json();
-                    
-                    const requestsList = document.getElementById('creditRequestsList');
-                    if (requests.length === 0) {
-                        requestsList.innerHTML = '<p>No pending credit requests</p>';
-                        return;
-                    }
-
-                    requestsList.innerHTML = requests.map(request => `
-                        <div class="request-card">
-                            <div class="request-info">
-                                <p><strong>${request.userName}</strong> requested ${request.credits} credits</p>
-                                <p>Requested at: ${new Date(request.requestedAt).toLocaleString()}</p>
-                            </div>
-                            <div class="request-actions">
-                                <button onclick="approveCredits('${request.userId}', ${request.credits}, '${request._id}')">
-                                    Approve
-                                </button>
-                            </div>
-                        </div>
-                    `).join('');
-                } catch (error) {
-                    console.error('Error loading credit requests:', error);
-                }
-            }
-
-            // Approve credits
-            async function approveCredits(userId, credits, requestId) {
-                try {
-                    const response = await fetch(`/api/credits/approve/${userId}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({ credits, requestId })
-                    });
-
-                    if (response.ok) {
-                        alert('Credits approved successfully!');
-                        loadCreditRequests();
-                        loadUsers();
-                    } else {
-                        throw new Error('Failed to approve credits');
-                    }
-                } catch (error) {
-                    console.error('Error approving credits:', error);
-                    alert('Failed to approve credits');
-                }
-            }
-
-            // Initialize page
-            loadStats();
-            loadUsers();
-            loadCreditRequests();
-        </script>
+        <h2>Credit Requests</h2>
+        <div id="creditRequestsList">
+            <!-- Credit requests will be loaded here -->
+        </div>
     </div>
+
+    <script>
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/stats', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load stats');
+                }
+                
+                const stats = await response.json();
+                console.log('Loaded stats:', stats);
+                
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card">
+                        <h3>Total Users</h3>
+                        <div class="value">${stats.totalUsers}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Images</h3>
+                        <div class="value">${stats.totalImages}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Images Today</h3>
+                        <div class="value">${stats.imagesGeneratedToday}</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                document.getElementById('statsGrid').innerHTML = 
+                    '<p class="error">Error loading statistics. Please try again.</p>';
+            }
+        }
+
+        // Load users
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/admin/users', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load users');
+                }
+                
+                const users = await response.json();
+                console.log('Loaded users:', users);
+                
+                document.getElementById('usersTable').innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Credits</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.map(user => `
+                                <tr>
+                                    <td>${user.name}</td>
+                                    <td>${user.email}</td>
+                                    <td>${user.credits || 0}</td>
+                                    <td>${user.role}</td>
+                                    <td>
+                                        <button onclick="toggleUserRole('${user._id}', '${user.role}')" class="btn-small">
+                                            ${user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                        </button>
+                                        <button onclick="sendCredits('${user._id}')" class="btn-small">
+                                            Send Credits
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersTable').innerHTML = 
+                    '<p class="error">Error loading users. Please try again.</p>';
+            }
+        }
+
+        // Toggle user role
+        async function toggleUserRole(userId, currentRole) {
+            try {
+                const response = await fetch('/api/admin/users/role', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        role: currentRole === 'admin' ? 'user' : 'admin'
+                    }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update user role');
+                }
+
+                alert('User role updated successfully!');
+                loadUsers();
+            } catch (error) {
+                console.error('Error updating user role:', error);
+                alert('Failed to update user role');
+            }
+        }
+
+        // Send credits
+        async function sendCredits(userId) {
+            const credits = prompt('Enter number of credits to send:');
+            if (!credits) return;
+
+            try {
+                const response = await fetch('/api/admin/credits/send', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId, credits: parseInt(credits) }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send credits');
+                }
+
+                alert('Credits sent successfully!');
+                loadUsers();
+            } catch (error) {
+                console.error('Error sending credits:', error);
+                alert('Failed to send credits');
+            }
+        }
+
+        // Load credit requests
+        async function loadCreditRequests() {
+            try {
+                const response = await fetch('/api/credits/requests', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load credit requests');
+                }
+                
+                const requests = await response.json();
+                console.log('Loaded credit requests:', requests);
+                
+                const requestsList = document.getElementById('creditRequestsList');
+                if (!requests || requests.length === 0) {
+                    requestsList.innerHTML = '<p>No pending credit requests</p>';
+                    return;
+                }
+
+                requestsList.innerHTML = requests.map(request => `
+                    <div class="request-card">
+                        <div class="request-info">
+                            <p><strong>${request.userName}</strong> requested ${request.credits} credits</p>
+                            <p>Email: ${request.userEmail}</p>
+                            <p>Requested at: ${new Date(request.requestedAt).toLocaleString()}</p>
+                            <p>Request ID: ${request._id}</p>
+                            <p>User ID: ${request.userId}</p>
+                        </div>
+                        <div class="request-actions">
+                            <button onclick="approveCredits('${request.userId}', ${request.credits}, '${request._id}')">
+                                Approve
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading credit requests:', error);
+                document.getElementById('creditRequestsList').innerHTML = 
+                    '<p class="error">Error loading credit requests. Please try again.</p>';
+            }
+        }
+
+        // Approve credits
+        async function approveCredits(userId, credits, requestId) {
+            try {
+                console.log('Approving credits:', { userId, credits, requestId });
+                
+                if (!requestId) {
+                    throw new Error('Request ID is missing');
+                }
+
+                if (!userId) {
+                    throw new Error('User ID is missing');
+                }
+
+                const response = await fetch(`/api/credits/approve/${requestId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId, credits }),
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to approve credits');
+                }
+
+                const result = await response.json();
+                console.log('Credits approved successfully:', result);
+                
+                alert('Credits approved successfully!');
+                await loadCreditRequests();
+                await loadUsers();
+                await loadStats();
+            } catch (error) {
+                console.error('Error approving credits:', error);
+                alert(error.message || 'Failed to approve credits. Please try again.');
+            }
+        }
+
+        // Initialize page
+        loadStats();
+        loadUsers();
+        loadCreditRequests();
+    </script>
 </body>
 </html>
