@@ -379,9 +379,7 @@
                                 <p>Request ID: ${request._id}</p>
                             </div>
                             <div class="request-actions">
-                                <button onclick="approveCredits('${request.userId}', ${request.credits}, '${request._id}')" class="btn-small">
-                                    Approve
-                                </button>
+                                <button onclick="approveCredits('${request.userId}', ${request.credits}, '${request._id}')">Approve</button>
                             </div>
                         </div>
                     `).join('');
@@ -411,9 +409,7 @@
                     });
 
                     if (!response.ok) {
-                        const error = await response.json();
-                        console.error('Server error:', error);
-                        throw new Error(error.error || 'Failed to approve credits');
+                        throw new Error('Failed to approve credits');
                     }
 
                     const result = await response.json();
@@ -425,7 +421,7 @@
                     await loadStats();
                 } catch (error) {
                     console.error('Error approving credits:', error);
-                    alert(error.message || 'Failed to approve credits');
+                    alert('Failed to approve credits. Please try again.');
                 }
             }
 
