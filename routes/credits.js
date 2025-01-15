@@ -28,6 +28,11 @@ router.post('/request', auth, async (req, res) => {
             requestedAt: new Date()
         };
 
+        // Initialize creditRequests array if it doesn't exist
+        if (!user.creditRequests) {
+            user.creditRequests = [];
+        }
+
         console.log('Creating credit request:', creditRequest);
         user.creditRequests.push(creditRequest);
         await user.save();
@@ -48,12 +53,42 @@ router.post('/request', auth, async (req, res) => {
 // Get credit history
 router.get('/history', auth, async (req, res) => {
     try {
+        console.log('Fetching credit history for user:', req.user._id);
+        
         const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json(user.creditHistory.sort((a, b) => b.timestamp - a.timestamp));
+        // Initialize credit history if it doesn't exist
+        if (!user.creditHistory) {
+            user.creditHistory = [];
+            await user.save();
+        }
+
+        // Combine credit history and credit requests
+        const history = [
+            ...(user.creditHistory || []).map(item => ({
+                type: item.type,
+                amount: item.amount,
+                details: item.details,
+                timestamp: item.timestamp,
+                status: 'completed'
+            })),
+            ...(user.creditRequests || []).map(req => ({
+                type: 'purchase',
+                amount: req.credits,
+                details: `Credit purchase request`,
+                timestamp: req.requestedAt,
+                status: req.status
+            }))
+        ];
+
+        // Sort by timestamp, most recent first
+        history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+        console.log(`Found ${history.length} history items`);
+        res.json(history);
     } catch (error) {
         console.error('Error fetching credit history:', error);
         res.status(500).json({ error: 'Failed to fetch credit history' });
@@ -76,7 +111,7 @@ router.get('/requests', auth, async (req, res) => {
 
         const requests = [];
         users.forEach(user => {
-            const pendingRequests = user.creditRequests.filter(req => req.status === 'pending');
+            const pendingRequests = (user.creditRequests || []).filter(req => req.status === 'pending');
             console.log(`User ${user._id} has ${pendingRequests.length} pending requests`);
             
             pendingRequests.forEach(req => {
@@ -92,6 +127,9 @@ router.get('/requests', auth, async (req, res) => {
             });
         });
 
+        // Sort by request date, most recent first
+        requests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
+
         console.log('Returning requests:', requests);
         res.json(requests);
     } catch (error) {
@@ -104,57 +142,98 @@ router.get('/requests', auth, async (req, res) => {
 });
 
 // Admin: Approve credit request
-router.post('/approve/:userId', auth, async (req, res) => {
+router.post('/approve/:requestId', auth, async (req, res) => {
     try {
-        console.log('Received approval request:', {
-            adminId: req.user._id,
-            userId: req.params.userId,
-            requestData: req.body
-        });
-
         if (req.user.role !== 'admin') {
             return res.status(403).json({ error: 'Unauthorized' });
         }
 
-        const { userId } = req.params;
-        const { requestId } = req.body;
-
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+        const requestId = req.params.requestId;
+        if (!requestId) {
+            return res.status(400).json({ error: 'Request ID is required' });
         }
 
-        const request = user.creditRequests.id(requestId);
-        if (!request) {
+        console.log('Processing credit request approval:', requestId);
+
+        // Find user with this credit request
+        const user = await User.findOne({
+            'creditRequests._id': requestId
+        });
+
+        if (!user) {
+            console.log('Credit request not found');
             return res.status(404).json({ error: 'Credit request not found' });
         }
 
-        if (request.status !== 'pending') {
-            return res.status(400).json({ error: 'Credit request is not pending' });
+        // Find the specific credit request
+        const creditRequest = user.creditRequests.find(
+            req => req._id.toString() === requestId
+        );
+
+        if (!creditRequest) {
+            console.log('Credit request not found in user document');
+            return res.status(404).json({ error: 'Credit request not found' });
         }
 
-        // Update request status
-        request.status = 'approved';
-        request.approvedAt = new Date();
-        request.approvedBy = req.user._id;
+        if (creditRequest.status !== 'pending') {
+            console.log('Credit request already processed');
+            return res.status(400).json({ error: 'Credit request already processed' });
+        }
 
-        // Add credits and record in history
-        const creditsToAdd = request.credits;
-        user.credits += creditsToAdd;
+        // Update credit request status
+        creditRequest.status = 'approved';
+        creditRequest.approvedAt = new Date();
+        creditRequest.approvedBy = req.user._id;
+
+        // Add credits to user's account
+        const currentCredits = user.credits || 0;
+        const requestedCredits = creditRequest.credits || 0;
+        user.credits = currentCredits + requestedCredits;
+
+        // Add to credit history
+        if (!user.creditHistory) {
+            user.creditHistory = [];
+        }
+
         user.creditHistory.push({
-            type: 'add',
-            amount: creditsToAdd,
-            details: `Credit purchase approved by admin`
+            type: 'purchase',
+            amount: requestedCredits,
+            details: `Credit purchase approved by admin`,
+            timestamp: new Date()
         });
+
+        console.log('Updating user credits:', {
+            userId: user._id,
+            currentCredits,
+            requestedCredits,
+            newTotal: user.credits
+        });
+
+        // Mark modified arrays
+        user.markModified('creditRequests');
+        user.markModified('creditHistory');
 
         await user.save();
-        res.json({ 
-            message: 'Credits approved successfully',
-            updatedCredits: user.credits
+        console.log('Credit request approved successfully');
+
+        res.json({
+            message: 'Credit request approved successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                credits: user.credits,
+                creditRequest: {
+                    id: creditRequest._id,
+                    status: creditRequest.status,
+                    credits: creditRequest.credits,
+                    approvedAt: creditRequest.approvedAt
+                }
+            }
         });
     } catch (error) {
-        console.error('Error in /approve:', error);
-        res.status(500).json({ error: 'Failed to approve credits' });
+        console.error('Credit approval error:', error);
+        res.status(500).json({ error: 'Failed to approve credits: ' + error.message });
     }
 });
 
