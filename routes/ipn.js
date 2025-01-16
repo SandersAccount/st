@@ -61,6 +61,7 @@ router.post('/credits/notification', async (req, res) => {
                     password: 'defaultPassword', // Set a default password or handle as needed
                     creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }], // Record the purchase
                 });
+                    await user.save();
             } else {
                 user = new User({
                     email: WP_BUYER_EMAIL,
