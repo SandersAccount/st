@@ -154,8 +154,7 @@ router.post('/credits/notification', async (req, res) => {
             }
         } else {
             console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
-            res.json({ message: 'Notification received but no action taken' });
-        }
+        res.json({ message: 'Notification received but no action taken' });
     } catch (error) {
         console.error('Error processing IPN:', error);
         res.status(500).json({ 
