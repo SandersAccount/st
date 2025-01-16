@@ -50,7 +50,8 @@ const authMiddleware = async (req, res, next) => {
         const token = req.cookies.token;
         
         if (!token) {
-            return res.status(401).json({ error: 'No token provided' });
+            // Redirect to login page if no token is found
+            return res.redirect('/login');
         }
 
         // Verify token
@@ -59,15 +60,15 @@ const authMiddleware = async (req, res, next) => {
         // Get user from database
         const user = await User.findById(decoded.userId);
         if (!user) {
-            return res.status(401).json({ error: 'User not found' });
+            // Redirect to login page if user is not found
+            return res.redirect('/login');
         }
 
-        // Attach user to request object
-        req.user = user;
-        next();
+        req.user = user; // Attach user to request
+        next(); // Proceed to the next middleware or route handler
     } catch (error) {
-        console.error('Auth error:', error);
-        res.status(401).json({ error: 'Invalid token' });
+        console.error('Authentication error:', error);
+        return res.redirect('/login'); // Redirect to login on error
     }
 };
 
