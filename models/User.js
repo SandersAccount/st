@@ -69,6 +69,10 @@ const userSchema = new mongoose.Schema({
         endDate: Date
     },
     creditRequests: [creditRequestSchema],
+    creditHistory: [{ // Added creditHistory field
+        product: String,
+        purchasedAt: Date
+    }],
     createdAt: {
         type: Date,
         default: Date.now
