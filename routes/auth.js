@@ -8,7 +8,6 @@ import Collection from '../models/Collection.js';
 
 const router = express.Router(); // Ensure this line is present
 
-// Register user
 router.post('/register', [
     body('email').isEmail(),
     body('password').isLength({ min: 6 }),
@@ -22,8 +21,12 @@ router.post('/register', [
 
         const { email, password, name } = req.body;
 
-        console.log('Checking registration for email:', email);
+        // Logging the email being checked
+        console.log('Email being checked:', email);
+
         const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+        
+        // Logging the result of the purchase check
         console.log('StickerLab purchase found:', stickerLabPurchase);
 
         if (!stickerLabPurchase) {
@@ -57,7 +60,7 @@ router.post('/register', [
         });
         res.status(201).json({ user: { id: user._id, email: user.email, name: user.name } });
     } catch (error) {
-        console.error('Registration error:', error);
+        console.error('Register error:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
