@@ -292,6 +292,9 @@ app.get('/login', (req, res) => {
     res.sendFile(join(__dirname, 'login.html'));
 });
 
+app.get('/register', (req, res) => {
+    res.sendFile(join(__dirname, 'register.html'));
+});
 
 
 app.post('/api/auth/login', async (req, res) => {
