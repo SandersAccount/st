@@ -153,7 +153,7 @@ router.post('/credits/notification', async (req, res) => {
                 res.status(404).json({ error: 'Original purchase not found' });
             }
         } else {
-            console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
+           console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
         res.json({ message: 'Notification received but no action taken' });
     } catch (error) {
         console.error('Error processing IPN:', error);
