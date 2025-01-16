@@ -54,26 +54,23 @@ router.post('/credits/notification', async (req, res) => {
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
             // Create a new user if not found
-            if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
-                user = new User({
-                    email: WP_BUYER_EMAIL,
-                    name: WP_BUYER_NAME,
-                    password: 'defaultPassword', // Set a default password or handle as needed
-                    creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }], // Record the purchase
-                });
-                    await user.save();
-            } else {
-                user = new User({
-                    email: WP_BUYER_EMAIL,
-                    name: WP_BUYER_NAME,
-                    password: 'defaultPassword', // Set a default password or handle as needed
-                    // Add other necessary fields
-                });
-            }
-            await user.save();
-            console.log('New user created:', user);
-        }
-
+          if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
+    let user = await User.findOne({ email: WP_BUYER_EMAIL });
+    if (!user) {
+        // Create a new user without a password
+        user = new User({
+            email: WP_BUYER_EMAIL,
+            name: WP_BUYER_NAME,
+            // Do not set a password here
+            creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
+        });
+    } else {
+        // Update existing user with purchase information
+        user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+    }
+    await user.save();
+    console.log('New user created or updated:', user);
+}
         if (WP_ITEM_NUMBER === 'wso_svyh7b') {
             // Logic for handling StickerLab purchase
             user.credits = (user.credits || 0) + 100; // Add 100 credits
