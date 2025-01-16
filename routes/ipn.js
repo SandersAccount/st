@@ -57,14 +57,13 @@ router.post('/credits/notification', async (req, res) => {
             if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
                 user = new User({
                     email: WP_BUYER_EMAIL,
-                    name: WP_BUYER_NAME,
-                    password: 'defaultPassword', // Set a default password or handle as needed
-                    // Add other necessary fields
                 });
             } else {
                 user = new User({
                     email: WP_BUYER_EMAIL,
-                    // Add other necessary fields, like a default password or username
+                    name: WP_BUYER_NAME,
+                    password: 'defaultPassword', // Set a default password or handle as needed
+                    // Add other necessary fields
                 });
             }
             await user.save();
