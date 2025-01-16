@@ -6,7 +6,7 @@ import Auth from '../middleware/auth.js';
 import Generation from '../models/Generation.js';
 import Collection from '../models/Collection.js';
 
-const router = express.Router
+const router = express.Router();
 
 
 // Register user
