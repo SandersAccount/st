@@ -21,17 +21,43 @@ router.post('/register', [
     }
 
     const { email, password, name } = req.body;
-    
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ error: 'User already exists' });
+
+    // Check if the email was used to purchase StickerLab
+    const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+
+    if (!stickerLabPurchase) {
+      return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
     }
 
+    // Proceed to create the user
+    let user = await User.findOne({ email });
+    if (user) {
+      // If the user exists, we can allow registration without alerts
+      user.name = name; // Update the name if needed
+      await user.save();
+      const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      return res.status(200).json({ 
+        user: { 
+          id: user._id, 
+          email: user.email, 
+          name: user.name 
+        }
+      });
+    }
+
+    // Create new user
     user = new User({ email, password, name });
     await user.save();
-
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    
+
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
