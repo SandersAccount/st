@@ -6,14 +6,13 @@ import Auth from '../middleware/auth.js';
 import Generation from '../models/Generation.js';
 import Collection from '../models/Collection.js';
 
-const router = express.Router();
-
+const router = express.Router(); // Ensure this line is present
 
 // Register user
 router.post('/register', [
-  body('email').isEmail(),
-  body('password').isLength({ min: 6 }),
-  body('name').notEmpty()
+    body('email').isEmail(),
+    body('password').isLength({ min: 6 }),
+    body('name').notEmpty()
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
