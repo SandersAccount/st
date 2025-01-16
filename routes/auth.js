@@ -21,12 +21,9 @@ router.post('/register', [
 
         const { email, password, name } = req.body;
 
-        // Logging the email being checked
-        console.log('Email being checked:', email);
-
+        // Check if the email was used to purchase StickerLab
+        console.log('Checking registration for email:', email);
         const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
-
-        // Logging the result of the purchase check
         console.log('StickerLab purchase found:', stickerLabPurchase);
 
         if (!stickerLabPurchase) {
@@ -48,9 +45,13 @@ router.post('/register', [
             return res.status(200).json({ user: { id: user._id, email: user.email, name: user.name } });
         }
 
-        // Create new user
-        user = new User({ email, password, name });
-        await user.save();
+        // Create new user with hashed password
+        user = new User({
+            email,
+            password, // This will be hashed in the User model's pre-save hook
+            name
+        });
+        await user.save(); // This should trigger the password hashing
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.cookie('token', token, {
             httpOnly: true,
