@@ -25,7 +25,7 @@ router.post('/register', [
         console.log('Email being checked:', email);
 
         const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
-        
+
         // Logging the result of the purchase check
         console.log('StickerLab purchase found:', stickerLabPurchase);
 
