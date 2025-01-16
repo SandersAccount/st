@@ -66,7 +66,6 @@ router.post('/register', [
 });
 
 // Login user
-// Login user
 router.post('/login', [
     body('email').isEmail(),
     body('password').exists()
