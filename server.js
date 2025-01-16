@@ -293,7 +293,7 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-    res.sendFile(join(__dirname, 'register.html'));
+    res.sendFile(path.join(__dirname, 'register.html'));
 });
 
 // Auth API endpoints
