@@ -9,7 +9,8 @@ import Collection from '../models/Collection.js';
 const router = express.Router(); // Ensure this line is present
 
 router.post('/register', async (req, res) => {
-    const { email, password, name } = req.body;
+    try {
+        const { email, password, name } = req.body;
 
     // Check if the email was used to purchase StickerLab
     const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
@@ -36,7 +37,7 @@ router.post('/register', async (req, res) => {
             sameSite: 'strict',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
-        res.status(201).json({ user: { id: user._id, email: user.email, name: user.name } });
+         res.status(201).json({ user: { id: user._id, email: user.email, name: user.name } });
     } catch (error) {
         console.error('Register error:', error);
         res.status(500).json({ error: 'Server error' });
