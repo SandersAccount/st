@@ -53,24 +53,20 @@ router.post('/credits/notification', async (req, res) => {
 
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
         if (!user) {
-            // Create a new user if not found
-          if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
-    let user = await User.findOne({ email: WP_BUYER_EMAIL });
-    if (!user) {
-        // Create a new user without a password
-        user = new User({
-            email: WP_BUYER_EMAIL,
-            name: WP_BUYER_NAME,
-            // Do not set a password here
-            creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
-        });
-    } else {
-        // Update existing user with purchase information
-        user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
-    }
-    await user.save();
-    console.log('New user created or updated:', user);
-}
+            if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
+                // Create a new user without a password
+                user = new User({
+                    email: WP_BUYER_EMAIL,
+                    name: WP_BUYER_NAME,
+                    creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
+                });
+            }
+        } else {
+            // Update existing user with purchase information
+            user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+        }
+
+        // Handle credit assignment
         if (WP_ITEM_NUMBER === 'wso_svyh7b') {
             // Logic for handling StickerLab purchase
             user.credits = (user.credits || 0) + 100; // Add 100 credits
@@ -115,16 +111,13 @@ router.post('/credits/notification', async (req, res) => {
             });
         } else if (WP_ACTION === 'refund') {
             // Handle refund
-            // Find the original purchase in credit history
             const purchase = user.creditHistory.find(h => 
                 h.transactionId === WP_SALE && h.type === 'purchase'
             );
 
             if (purchase) {
-                // Remove credits
                 user.credits = Math.max(0, (user.credits || 0) - purchase.amount);
                 
-                // Add refund to history
                 user.creditHistory.push({
                     type: 'refund',
                     amount: -purchase.amount,
@@ -153,8 +146,9 @@ router.post('/credits/notification', async (req, res) => {
                 res.status(404).json({ error: 'Original purchase not found' });
             }
         } else {
-           console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
-        res.json({ message: 'Notification received but no action taken' });
+            console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
+            res.json({ message: 'Notification received but no action taken' });
+        }
     } catch (error) {
         console.error('Error processing IPN:', error);
         res.status(500).json({ 
