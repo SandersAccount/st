@@ -292,6 +292,12 @@ app.get('/login', (req, res) => {
     res.sendFile(join(__dirname, 'login.html'));
 });
 
+<<<<<<< HEAD
+=======
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, 'register.html')); // Adjust the path if necessary
+});
+>>>>>>> 57b950c5a021d4c3f85058d8c672a1b6e2e4f39c
 
 
 app.post('/api/auth/login', async (req, res) => {

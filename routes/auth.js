@@ -8,6 +8,7 @@ import Collection from '../models/Collection.js';
 
 const router = express.Router();
 
+
 // Register user
 router.post('/register', [
   body('email').isEmail(),
@@ -22,10 +23,15 @@ router.post('/register', [
 
     const { email, password, name } = req.body;
 
+<<<<<<< HEAD
     console.log('Checking registration for email:', email);
     const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
     console.log('StickerLab purchase found:', stickerLabPurchase);
 
+=======
+    // Check if the email was used to purchase StickerLab
+    const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+>>>>>>> 57b950c5a021d4c3f85058d8c672a1b6e2e4f39c
     if (!stickerLabPurchase) {
       return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
     }
