@@ -22,8 +22,9 @@ router.post('/register', [
 
     const { email, password, name } = req.body;
 
-    // Check if the email was used to purchase StickerLab
+    console.log('Checking registration for email:', email);
     const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
+    console.log('StickerLab purchase found:', stickerLabPurchase);
 
     if (!stickerLabPurchase) {
       return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
