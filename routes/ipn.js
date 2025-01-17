@@ -1,5 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
+import { creditProducts } from '../config/credits.js';
 
 const SECURITY_KEY = '4350c564f7cef14a92c7ff7ff9c6dce';
 
@@ -9,18 +10,10 @@ function validateIPN(securityKey) {
 }
 
 // Map product IDs to credit amounts
-const CREDIT_PRODUCTS = {
-    'product_100': 100,
-    'product_200': 200,
-    'product_300': 300,
-    'product_400': 400,
-    'product_500': 500,
-    'product_600': 600,
-    'product_700': 700,
-    'product_800': 800,
-    'product_900': 900,
-    'product_1000': 1000,
-};
+const CREDIT_PRODUCTS = creditProducts.reduce((acc, product) => {
+    acc[product.productId] = product.credits;
+    return acc;
+}, {});
 
 // Handle IPN notifications
 const router = express.Router();
@@ -66,7 +59,9 @@ router.post('/credits/notification', async (req, res) => {
             }
         } else {
             // Update existing user with purchase information
-            user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+            if (WP_ITEM_NUMBER === 'wso_svyh7b') {
+                user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+            }
         }
 
         // Handle credit assignment
@@ -74,30 +69,19 @@ router.post('/credits/notification', async (req, res) => {
             // Logic for handling StickerLab purchase
             user.credits = (user.credits || 0) + 100; // Add 100 credits
             console.log('User gained access to StickerLab and received 100 credits:', user.email);
-        } else if (WP_ITEM_NUMBER.startsWith('product_')) {
+        } else if (CREDIT_PRODUCTS[WP_ITEM_NUMBER]) {
+            // Handle credit package purchase
             const credits = CREDIT_PRODUCTS[WP_ITEM_NUMBER];
-            if (credits) {
-                // Add credits to user's balance
-                user.credits = (user.credits || 0) + credits;
-                console.log('Credits added:', credits);
-            }
+            user.credits = (user.credits || 0) + credits;
+            user.creditHistory.push({
+                product: `Credit Purchase (${credits})`,
+                purchasedAt: new Date()
+            });
+            console.log(`Added ${credits} credits to user ${user.email}`);
         }
 
         // Case-insensitive status check
         if (WP_ACTION === 'sale' && WP_PAYMENT_STATUS.toUpperCase() === 'COMPLETED') {
-            // Add to credit history
-            if (!user.creditHistory) {
-                user.creditHistory = [];
-            }
-
-            user.creditHistory.push({
-                type: 'purchase',
-                amount: user.credits,
-                transactionId: WP_SALE,
-                details: `Credit purchase via marketplace`,
-                timestamp: new Date()
-            });
-
             await user.save();
 
             console.log('Credits added successfully:', {
@@ -113,42 +97,6 @@ router.post('/credits/notification', async (req, res) => {
                 userId: user._id,
                 credits: user.credits
             });
-        } else if (WP_ACTION === 'refund') {
-            // Handle refund
-            const purchase = user.creditHistory.find(h => 
-                h.transactionId === WP_SALE && h.type === 'purchase'
-            );
-
-            if (purchase) {
-                user.credits = Math.max(0, (user.credits || 0) - purchase.amount);
-                
-                user.creditHistory.push({
-                    type: 'refund',
-                    amount: -purchase.amount,
-                    transactionId: WP_SALE,
-                    details: `Credit purchase refunded`,
-                    timestamp: new Date()
-                });
-
-                await user.save();
-
-                console.log('Credits refunded successfully:', {
-                    userId: user._id,
-                    email: user.email,
-                    credits: -purchase.amount,
-                    newBalance: user.credits,
-                    transactionId: WP_SALE
-                });
-
-                res.json({
-                    message: 'Credits refunded successfully',
-                    userId: user._id,
-                    credits: user.credits
-                });
-            } else {
-                console.error('Original purchase not found:', WP_SALE);
-                res.status(404).json({ error: 'Original purchase not found' });
-            }
         } else {
             console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
             res.json({ message: 'Notification received but no action taken' });

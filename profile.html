@@ -335,6 +335,84 @@
         .credit-use {
             color: #f44336;
         }
+
+        .credits-selector {
+            margin-top: 2rem;
+        }
+
+        .slider-container {
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            color: #666;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            background: #333;
+            height: 4px;
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ff1cf7;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .selected-credits {
+            text-align: center;
+            font-size: 24px;
+            color: #fff;
+            margin: 1rem 0;
+        }
+
+        #selectedCredits {
+            color: #ff1cf7;
+            font-weight: bold;
+        }
+
+        .purchase-button {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            background: #ff1cf7;
+            color: white;
+            text-align: center;
+            border-radius: 8px;
+            text-decoration: none;
+            margin-top: 2rem;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .purchase-button:hover {
+            background: #d600ce;
+        }
+
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .close-button:hover {
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -469,17 +547,21 @@
     <!-- Credits Popup -->
     <div class="credits-popup" id="creditsPopup">
         <div class="credits-popup-content">
-            <div class="credits-popup-header">
-                <h2>Buy Credits</h2>
-                <button onclick="hideCreditsPopup()" style="background: none; border: none; color: #fff; font-size: 24px; cursor: pointer;">&times;</button>
+            <h2>Buy Credits</h2>
+            <div class="credits-selector">
+                <div class="slider-container">
+                    <input type="range" id="creditsSlider" min="100" max="1000" step="100" value="100">
+                    <div class="slider-labels">
+                        <span>100</span>
+                        <span>1000</span>
+                    </div>
+                </div>
+                <div class="selected-credits">
+                    <span id="selectedCredits">100</span> Credits
+                </div>
+                <a href="#" id="purchaseLink" class="purchase-button">Purchase Credits</a>
             </div>
-            <input type="range" min="100" max="1000" step="100" value="100" class="credits-slider" id="creditsSlider">
-            <div class="credits-info">
-                <div id="selectedCredits">100 Credits</div>
-                <div id="creditsDiscount">0% Discount</div>
-                <div id="creditsPrice">$10.00</div>
-            </div>
-            <button class="buy-credits-btn" onclick="purchaseCredits()">Buy Credits</button>
+            <button class="close-button" onclick="hideCreditsPopup()">×</button>
         </div>
     </div>
 
@@ -511,19 +593,21 @@
         // Credits popup functionality
         function showCreditsPopup() {
             document.getElementById('creditsPopup').style.display = 'flex';
+            updatePurchaseLink();
         }
 
         function hideCreditsPopup() {
             document.getElementById('creditsPopup').style.display = 'none';
         }
 
-        function updateCreditsInfo() {
-            const credits = parseInt(document.getElementById('creditsSlider').value);
-            const package = creditPackages.find(p => p.credits === credits);
+        function updatePurchaseLink() {
+            const selectedCredits = parseInt(document.getElementById('creditsSlider').value);
+            const product = creditPackages.find(p => p.credits === selectedCredits);
             
-            document.getElementById('selectedCredits').textContent = `${credits} Credits`;
-            document.getElementById('creditsDiscount').textContent = `${package.discount}% Discount`;
-            document.getElementById('creditsPrice').textContent = `$${package.price.toFixed(2)}`;
+            if (product) {
+                document.getElementById('purchaseLink').href = product.purchaseUrl;
+                document.getElementById('selectedCredits').textContent = selectedCredits;
+            }
         }
 
         async function purchaseCredits() {
@@ -551,12 +635,12 @@
             }
         }
 
-        // Initialize credits slider
-        document.getElementById('creditsSlider').addEventListener('input', updateCreditsInfo);
+        // Initialize slider
+        document.getElementById('creditsSlider').addEventListener('input', updatePurchaseLink);
 
         // Close popup when clicking outside
-        document.getElementById('creditsPopup').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('creditsPopup')) {
+        document.getElementById('creditsPopup').addEventListener('click', function(e) {
+            if (e.target === this) {
                 hideCreditsPopup();
             }
         });
