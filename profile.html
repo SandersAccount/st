@@ -576,21 +576,16 @@
     </script>
     <script src="/js/credits-popup.js"></script>
     <script>
-        // Credit packages configuration
-        const creditPackages = [
-            { credits: 100, discount: 0, price: 10.00 },
-            { credits: 200, discount: 4, price: 19.20 },
-            { credits: 300, discount: 6, price: 28.20 },
-            { credits: 400, discount: 8, price: 36.80 },
-            { credits: 500, discount: 10, price: 45.00 },
-            { credits: 600, discount: 12, price: 52.80 },
-            { credits: 700, discount: 14, price: 60.20 },
-            { credits: 800, discount: 16, price: 67.20 },
-            { credits: 900, discount: 18, price: 73.80 },
-            { credits: 1000, discount: 20, price: 80.00 }
-        ];
+        // Load credit products configuration
+        let creditProducts;
+        fetch('/api/subscription/credits/packages')
+            .then(response => response.json())
+            .then(products => {
+                creditProducts = products;
+                updatePurchaseLink(); // Update link once products are loaded
+            })
+            .catch(error => console.error('Error loading credit products:', error));
 
-        // Credits popup functionality
         function showCreditsPopup() {
             document.getElementById('creditsPopup').style.display = 'flex';
             updatePurchaseLink();
@@ -601,37 +596,14 @@
         }
 
         function updatePurchaseLink() {
+            if (!creditProducts) return; // Wait for products to load
+
             const selectedCredits = parseInt(document.getElementById('creditsSlider').value);
-            const product = creditPackages.find(p => p.credits === selectedCredits);
+            const product = creditProducts.find(p => p.credits === selectedCredits);
             
             if (product) {
                 document.getElementById('purchaseLink').href = product.purchaseUrl;
                 document.getElementById('selectedCredits').textContent = selectedCredits;
-            }
-        }
-
-        async function purchaseCredits() {
-            const credits = parseInt(document.getElementById('creditsSlider').value);
-            try {
-                const response = await fetch('/api/credits/request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ credits })
-                });
-
-                if (response.ok) {
-                    alert('Credit purchase request sent to admin!');
-                    hideCreditsPopup();
-                    loadUserProfile(); // Refresh the profile data
-                } else {
-                    throw new Error('Failed to request credits');
-                }
-            } catch (error) {
-                console.error('Error requesting credits:', error);
-                alert('Failed to request credits. Please try again.');
             }
         }
 

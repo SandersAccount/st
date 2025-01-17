@@ -3,6 +3,7 @@ import User from '../models/User.js';
 import auth from '../middleware/auth.js';
 import subscriptionService from '../services/subscription.js';
 import plans from '../config/plans.js';
+import { creditProducts } from '../config/credits.js';
 import Stripe from 'stripe';
 
 const router = express.Router();
@@ -18,7 +19,8 @@ router.get('/', auth, async (req, res) => {
             '/plans': 'Get available plans',
             '/current': 'Get current subscription',
             '/subscribe/:planId': 'Subscribe to a plan',
-            '/cancel': 'Cancel subscription'
+            '/cancel': 'Cancel subscription',
+            '/credits/packages': 'Get credit packages'
         }
     });
 });
@@ -41,6 +43,11 @@ router.get('/current', auth, async (req, res) => {
         console.error('Get subscription error:', error);
         res.status(500).json({ error: 'Server error' });
     }
+});
+
+// Get credit packages
+router.get('/credits/packages', (req, res) => {
+    res.json(creditProducts);
 });
 
 // Subscribe to a plan
