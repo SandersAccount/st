@@ -58,6 +58,7 @@ router.post('/credits/notification', async (req, res) => {
                 user = new User({
                     email: WP_BUYER_EMAIL,
                     name: WP_BUYER_NAME,
+                    registered: false, // Mark as not registered yet
                     creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
                 });
                 await user.save(); // Save the new user immediately

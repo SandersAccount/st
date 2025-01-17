@@ -13,37 +13,49 @@ router.post('/register', [
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
+            console.log('Validation errors:', errors.array());
             return res.status(400).json({ errors: errors.array() });
         }
 
         const { email, password, name } = req.body;
+        console.log('Registration attempt for email:', email);
 
         // Check if the email was used to purchase StickerLab
-        const stickerLabPurchase = await User.findOne({ email: email, 'creditHistory.product': 'StickerLab' });
-        if (!stickerLabPurchase) {
+        const stickerLabPurchase = await User.findOne({ email: email });
+        console.log('Found user:', stickerLabPurchase);
+        if (stickerLabPurchase) {
+            console.log('User credit history:', stickerLabPurchase.creditHistory);
+        }
+
+        // Check if user has StickerLab purchase
+        const hasStickerLab = stickerLabPurchase?.creditHistory?.some(h => h.product === 'StickerLab');
+        console.log('Has StickerLab purchase:', hasStickerLab);
+
+        if (!hasStickerLab) {
             return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
         }
 
-        // Check if user exists (created by IPN)
-        let user = await User.findOne({ email });
-        if (user) {
-            // Update both name and password for existing user
-            user.name = name;
-            user.password = password; // This will trigger the password hashing middleware
-            await user.save();
+        // User exists and has StickerLab, update their info
+        if (stickerLabPurchase) {
+            console.log('Updating existing user');
+            stickerLabPurchase.name = name;
+            stickerLabPurchase.password = password; // This will trigger the password hashing middleware
+            stickerLabPurchase.registered = true; // Mark as registered
+            await stickerLabPurchase.save();
             
-            const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+            const token = jwt.sign({ userId: stickerLabPurchase._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
             res.cookie('token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
-            return res.status(200).json({ user: { id: user._id, email: user.email, name: user.name } });
+            return res.status(200).json({ user: { id: stickerLabPurchase._id, email: stickerLabPurchase.email, name: stickerLabPurchase.name } });
         }
 
-        // Create new user if not found
-        user = new User({ email, password, name });
+        // This shouldn't happen since we already found the user above, but just in case
+        console.log('Creating new user');
+        let user = new User({ email, password, name });
         await user.save();
         
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });

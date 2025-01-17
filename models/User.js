@@ -42,7 +42,14 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: true
+        required: function() {
+            // Password is only required if user has registered (not just created by IPN)
+            return this.registered === true;
+        }
+    },
+    registered: {
+        type: Boolean,
+        default: false
     },
     role: {
         type: String,
