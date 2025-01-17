@@ -5,6 +5,7 @@ import subscriptionService from '../services/subscription.js';
 import plans from '../config/plans.js';
 import { creditProducts } from '../config/credits.js';
 import Stripe from 'stripe';
+import Variable from '../models/Variable.js';
 
 const router = express.Router();
 
@@ -46,8 +47,17 @@ router.get('/current', auth, async (req, res) => {
 });
 
 // Get credit packages
-router.get('/credits/packages', (req, res) => {
-    res.json(creditProducts);
+router.get('/credits/packages', async (req, res) => {
+    try {
+        const creditProducts = await Variable.findOne({ key: 'creditProducts' });
+        if (!creditProducts) {
+            return res.status(404).json({ error: 'Credit products not found' });
+        }
+        res.json(creditProducts.value);
+    } catch (error) {
+        console.error('Error getting credit packages:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // Subscribe to a plan

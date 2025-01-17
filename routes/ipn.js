@@ -1,23 +1,32 @@
 import express from 'express';
 import User from '../models/User.js';
-import { creditProducts } from '../config/credits.js';
+import Variable from '../models/Variable.js';
 
-const SECURITY_KEY = '4350c564f7cef14a92c7ff7ff9c6dce';
+const router = express.Router();
 
-// Helper function to validate IPN request
-function validateIPN(securityKey) {
-    return securityKey === SECURITY_KEY;
+// Get security key from variables
+async function getSecurityKey() {
+    const securityVar = await Variable.findOne({ key: 'securityKey' });
+    return securityVar ? securityVar.value : '4350c564f7cef14a92c7ff7ff9c6dce';
 }
 
-// Map product IDs to credit amounts
-const CREDIT_PRODUCTS = creditProducts.reduce((acc, product) => {
-    acc[product.productId] = product.credits;
-    return acc;
-}, {});
+// Get credit amount for a product
+async function getCreditAmount(productId) {
+    const creditProducts = await Variable.findOne({ key: 'creditProducts' });
+    if (!creditProducts) return null;
+
+    const product = creditProducts.value.find(p => p.productId === productId);
+    return product ? product.credits : null;
+}
+
+// Validate IPN request
+async function validateIPN(securityKey) {
+    const validKey = await getSecurityKey();
+    return securityKey === validKey;
+}
 
 // Handle IPN notifications
-const router = express.Router();
-router.post('/credits/notification', async (req, res) => {
+router.post('/notification', async (req, res) => {
     try {
         console.log('Received IPN notification:', req.body);
         console.log('Incoming Request Headers:', req.headers);
@@ -39,45 +48,52 @@ router.post('/credits/notification', async (req, res) => {
         console.log('WP_SECURITYKEY:', WP_SECURITYKEY);
 
         // Validate security key
-        if (!validateIPN(WP_SECURITYKEY)) {
+        if (!await validateIPN(WP_SECURITYKEY)) {
             console.error('Invalid security key');
             return res.status(401).json({ error: 'Invalid security key' });
         }
 
         let user = await User.findOne({ email: WP_BUYER_EMAIL });
+        
+        // Get StickerLab product info
+        const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
+        const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
+
         if (!user) {
             // Create a new user without a password
-            if (WP_ITEM_NUMBER === 'wso_svyh7b') { // StickerLab product code
+            if (WP_ITEM_NUMBER === stickerLabProductId) {
                 user = new User({
                     email: WP_BUYER_EMAIL,
                     name: WP_BUYER_NAME,
-                    registered: false, // Mark as not registered yet
+                    registered: false,
                     creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
                 });
-                await user.save(); // Save the new user immediately
+                await user.save();
                 console.log('New user created from IPN:', user.email);
             }
         } else {
             // Update existing user with purchase information
-            if (WP_ITEM_NUMBER === 'wso_svyh7b') {
+            if (WP_ITEM_NUMBER === stickerLabProductId) {
                 user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
             }
         }
 
         // Handle credit assignment
-        if (WP_ITEM_NUMBER === 'wso_svyh7b') {
+        if (WP_ITEM_NUMBER === stickerLabProductId) {
             // Logic for handling StickerLab purchase
-            user.credits = (user.credits || 0) + 100; // Add 100 credits
+            user.credits = (user.credits || 0) + 100;
             console.log('User gained access to StickerLab and received 100 credits:', user.email);
-        } else if (CREDIT_PRODUCTS[WP_ITEM_NUMBER]) {
+        } else {
             // Handle credit package purchase
-            const credits = CREDIT_PRODUCTS[WP_ITEM_NUMBER];
-            user.credits = (user.credits || 0) + credits;
-            user.creditHistory.push({
-                product: `Credit Purchase (${credits})`,
-                purchasedAt: new Date()
-            });
-            console.log(`Added ${credits} credits to user ${user.email}`);
+            const credits = await getCreditAmount(WP_ITEM_NUMBER);
+            if (credits) {
+                user.credits = (user.credits || 0) + credits;
+                user.creditHistory.push({
+                    product: `Credit Purchase (${credits})`,
+                    purchasedAt: new Date()
+                });
+                console.log(`Added ${credits} credits to user ${user.email}`);
+            }
         }
 
         // Case-insensitive status check
