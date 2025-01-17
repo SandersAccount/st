@@ -1,12 +1,12 @@
 import express from 'express';
 import Variable from '../models/Variable.js';
 import auth from '../middleware/auth.js';
-import isAdmin from '../middleware/isAdmin.js';
+import adminAuth from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
 // Get all variables
-router.get('/', auth, isAdmin, async (req, res) => {
+router.get('/', auth, adminAuth, async (req, res) => {
     try {
         const variables = await Variable.find().sort({ category: 1, key: 1 });
         res.json(variables);
@@ -17,7 +17,7 @@ router.get('/', auth, isAdmin, async (req, res) => {
 });
 
 // Get variables by category
-router.get('/category/:category', auth, isAdmin, async (req, res) => {
+router.get('/category/:category', auth, adminAuth, async (req, res) => {
     try {
         const variables = await Variable.find({ category: req.params.category }).sort({ key: 1 });
         res.json(variables);
@@ -28,7 +28,7 @@ router.get('/category/:category', auth, isAdmin, async (req, res) => {
 });
 
 // Update variable
-router.put('/:id', auth, isAdmin, async (req, res) => {
+router.put('/:id', auth, adminAuth, async (req, res) => {
     try {
         const { value } = req.body;
         const variable = await Variable.findByIdAndUpdate(
