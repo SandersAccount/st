@@ -481,7 +481,7 @@ app.put('/api/admin/users/:id/plan', authMiddleware, adminAuth, async (req, res)
         console.error('Error updating user plan:', error);
         res.status(500).json({ error: 'Failed to update user plan' });
     }
-});
+};
 
 // Public routes
 app.get('/auth', (req, res) => {
@@ -1407,43 +1407,39 @@ app.use('/api/credits', creditsRoutes);
 app.use('/api/ipn', upload.none(), ipnRouter);
 app.use('/api/variables', variablesRouter);
 
-const startServer = async (initialPort = 3005) => {
-    const findAvailablePort = async (startPort) => {
-        return new Promise((resolve) => {
-            const server = app.listen(startPort)
-                .on('listening', () => {
-                    server.close(() => resolve(startPort));
-                })
-                .on('error', (err) => {
-                    if (err.code === 'EADDRINUSE') {
-                        resolve(findAvailablePort(startPort + 1));
-                    } else {
-                        console.error('Server error:', err);
-                        process.exit(1);
-                    }
-                });
-        });
-    };
-
+async function startServer(initialPort = 3005) {
     try {
-        const port = await findAvailablePort(initialPort);
-        app.listen(port, () => {
-            console.log(`Server running at http://localhost:${port}`);
-            // Update CORS origin to match the new port
-            app.use(cors({
-                origin: [
-                    `http://localhost:${port}`,
-                    'https://sticker-app-xcap.onrender.com'
-                ],
-                credentials: true,
-                methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-                allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-            }));
-        });
+        // Initialize variables first
+        const { initializeVariables } = await import('./routes/variables.js');
+        await initializeVariables();
+        console.log('Variables initialized successfully');
+
+        let currentPort = initialPort;
+        let maxAttempts = 10;
+        let attempts = 0;
+
+        while (attempts < maxAttempts) {
+            try {
+                app.listen(currentPort, () => {
+                    console.log(`Server is running on port ${currentPort}`);
+                    console.log(`Access the app at http://localhost:${currentPort}`);
+                });
+                break;
+            } catch (error) {
+                console.log(`Port ${currentPort} is in use, trying next port...`);
+                currentPort++;
+                attempts++;
+            }
+        }
+
+        if (attempts === maxAttempts) {
+            console.error('Could not find an available port after multiple attempts');
+            process.exit(1);
+        }
     } catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('Error starting server:', error);
         process.exit(1);
     }
-};
+}
 
 startServer();
