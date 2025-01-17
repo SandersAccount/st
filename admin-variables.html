@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables Management - Admin</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .variables-container {
+            max-width: 1200px;
+            margin: 80px auto 0;
+            padding: 0 20px;
+        }
+
+        .variables-header {
+            margin-bottom: 2rem;
+        }
+
+        .variables-header h1 {
+            font-size: 24px;
+            margin: 0;
+            color: #fff;
+        }
+
+        .variables-header p {
+            color: #666;
+            margin: 4px 0 0;
+        }
+
+        .category-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 2rem;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .category-header h2 {
+            font-size: 20px;
+            margin: 0;
+            color: #fff;
+            text-transform: capitalize;
+        }
+
+        .variable-item {
+            background: #242424;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 1rem;
+        }
+
+        .variable-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .variable-key {
+            font-size: 16px;
+            color: #ff1cf7;
+            margin: 0;
+        }
+
+        .variable-description {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .variable-value {
+            width: 100%;
+            background: #333;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px;
+            color: #fff;
+            font-family: monospace;
+            margin-top: 8px;
+            min-height: 36px;
+        }
+
+        .variable-value.array {
+            min-height: 200px;
+        }
+
+        .save-button {
+            padding: 6px 12px;
+            background: #ff1cf7;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .save-button:hover {
+            background: #d600ce;
+        }
+
+        .save-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .last-updated {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .success-message {
+            color: #4caf50;
+            font-size: 14px;
+            margin-top: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+
+    <div class="variables-container">
+        <div class="variables-header">
+            <h1>Variables Management</h1>
+            <p>Manage external configurations and variables</p>
+        </div>
+
+        <div id="variablesContent"></div>
+    </div>
+
+    <script>
+        // Load variables by category
+        async function loadVariables() {
+            try {
+                const response = await fetch('/api/variables');
+                const variables = await response.json();
+
+                // Group variables by category
+                const categories = {};
+                variables.forEach(variable => {
+                    if (!categories[variable.category]) {
+                        categories[variable.category] = [];
+                    }
+                    categories[variable.category].push(variable);
+                });
+
+                const container = document.getElementById('variablesContent');
+                container.innerHTML = '';
+
+                // Create sections for each category
+                Object.entries(categories).forEach(([category, vars]) => {
+                    const section = document.createElement('div');
+                    section.className = 'category-section';
+                    section.innerHTML = `
+                        <div class="category-header">
+                            <h2>${category}</h2>
+                        </div>
+                        <div class="variables-list">
+                            ${vars.map(variable => createVariableItem(variable)).join('')}
+                        </div>
+                    `;
+                    container.appendChild(section);
+                });
+
+                // Add event listeners
+                document.querySelectorAll('.variable-value').forEach(textarea => {
+                    textarea.addEventListener('input', function() {
+                        const saveButton = this.parentElement.querySelector('.save-button');
+                        saveButton.disabled = false;
+                    });
+                });
+
+                document.querySelectorAll('.save-button').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const variableId = this.dataset.id;
+                        const textarea = this.parentElement.querySelector('.variable-value');
+                        saveVariable(variableId, textarea);
+                    });
+                });
+            } catch (error) {
+                console.error('Error loading variables:', error);
+            }
+        }
+
+        function createVariableItem(variable) {
+            const isArray = Array.isArray(variable.value);
+            const value = typeof variable.value === 'object' 
+                ? JSON.stringify(variable.value, null, 2)
+                : variable.value;
+            
+            return `
+                <div class="variable-item">
+                    <div class="variable-header">
+                        <div>
+                            <h3 class="variable-key">${variable.key}</h3>
+                            <p class="variable-description">${variable.description}</p>
+                        </div>
+                        <button class="save-button" data-id="${variable._id}" disabled>Save</button>
+                    </div>
+                    <textarea class="variable-value ${isArray ? 'array' : ''}" spellcheck="false">${value}</textarea>
+                    <div class="last-updated">Last updated: ${new Date(variable.lastUpdated).toLocaleString()}</div>
+                    <div class="error-message"></div>
+                    <div class="success-message"></div>
+                </div>
+            `;
+        }
+
+        async function saveVariable(id, textarea) {
+            const errorMessage = textarea.parentElement.querySelector('.error-message');
+            const successMessage = textarea.parentElement.querySelector('.success-message');
+            const saveButton = textarea.parentElement.querySelector('.save-button');
+            
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+
+            try {
+                // Try to parse if it's JSON
+                let value = textarea.value;
+                try {
+                    value = JSON.parse(value);
+                } catch {
+                    // If it's not valid JSON, use the raw value
+                }
+
+                const response = await fetch(`/api/variables/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ value })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to save variable');
+                }
+
+                saveButton.disabled = true;
+                successMessage.textContent = 'Saved successfully!';
+                successMessage.style.display = 'block';
+                
+                // Reload the page after 1 second to show updated values
+                setTimeout(() => {
+                    loadVariables();
+                }, 1000);
+            } catch (error) {
+                console.error('Error saving variable:', error);
+                errorMessage.textContent = 'Failed to save. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVariables();
+        });
+    </script>
+</body>
+</html>
