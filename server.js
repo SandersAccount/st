@@ -28,6 +28,7 @@ import bcrypt from 'bcrypt';
 import { localStyleStorage } from './utils/localStyleStorage.js';
 import axios from 'axios';
 import ipnRouter from './routes/ipn.js';
+import variablesRouter from './routes/variables.js';
 
 // Load environment variables
 dotenv.config();
@@ -385,6 +386,9 @@ app.get('/index.html', authMiddleware, (req, res) => {
 
 app.get('/admin', authMiddleware, adminAuth, (req, res) => {
     res.sendFile(join(__dirname, 'admin.html'));
+});
+app.get('/admin-variables', authMiddleware, adminAuth, (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'admin-variables.html'));
 });
 
 app.get('/api/admin/users', authMiddleware, adminAuth, async (req, res) => {
@@ -1401,6 +1405,7 @@ app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/credits', creditsRoutes);
 app.use('/api/ipn', upload.none(), ipnRouter);
+app.use('/api/variables', variablesRouter);
 
 const startServer = async (initialPort = 3005) => {
     const findAvailablePort = async (startPort) => {

@@ -56,6 +56,32 @@
         button:hover {
             background: #0056b3;
         }
+
+        .admin-nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 1rem;
+        }
+
+        .nav-item {
+            color: #666;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .nav-item:hover {
+            color: #fff;
+            background: #333;
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: #ff1cf7;
+        }
     </style>
 </head>
 <body>
@@ -63,10 +89,11 @@
     <div class="admin-container">
         <h1>Admin Dashboard</h1>
         <div class="admin-nav">
-            <a href="#users" class="nav-item active" data-section="users">Users</a>
+            <a href="#" class="nav-item active" data-section="dashboard">Dashboard</a>
+            <a href="#users" class="nav-item" data-section="users">Users</a>
             <a href="#styles" class="nav-item" data-section="styles">Styles</a>
             <a href="#settings" class="nav-item" data-section="settings">Settings</a>
-            <a href="/admin/variables" class="nav-item">Variables</a>
+            <a href="admin-variables.html" class="nav-item">Variables</a>
         </div>
         <div class="stats-grid" id="statsGrid">
             <!-- Stats will be loaded here -->
