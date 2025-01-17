@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -127,6 +128,27 @@ router.post('/login', [
         });
     } catch (error) {
         console.error('Login error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Get current user info (both /me and /user for compatibility)
+router.get('/me', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.json(user);
+    } catch (error) {
+        console.error('Error getting user info:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+router.get('/user', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('-password');
+        res.json(user);
+    } catch (error) {
+        console.error('Error getting user info:', error);
         res.status(500).json({ error: 'Server error' });
     }
 });
