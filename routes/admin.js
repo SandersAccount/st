@@ -86,7 +86,7 @@ router.get('/users', [auth, adminAuth], async (req, res) => {
             .select('-password')
             .sort('-createdAt');
         
-        res.json({ users });
+        res.json(users);
     } catch (error) {
         console.error('Error getting users:', error);
         res.status(500).json({ error: 'Failed to get users' });

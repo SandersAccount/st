@@ -60,6 +60,8 @@ router.post('/credits/notification', async (req, res) => {
                     name: WP_BUYER_NAME,
                     creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
                 });
+                await user.save(); // Save the new user immediately
+                console.log('New user created from IPN:', user.email);
             }
         } else {
             // Update existing user with purchase information
@@ -80,7 +82,8 @@ router.post('/credits/notification', async (req, res) => {
             }
         }
 
-        if (WP_ACTION === 'sale' && WP_PAYMENT_STATUS === 'Completed') {
+        // Case-insensitive status check
+        if (WP_ACTION === 'sale' && WP_PAYMENT_STATUS.toUpperCase() === 'COMPLETED') {
             // Add to credit history
             if (!user.creditHistory) {
                 user.creditHistory = [];
