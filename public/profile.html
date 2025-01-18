@@ -3,529 +3,540 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile - AI Image Generator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <title>Profile Settings - AI Image Generator</title>
     <link rel="stylesheet" href="/styles.css">
     <style>
         .profile-container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 2rem;
+            max-width: 800px;
+            margin: 80px auto 0;
+            padding: 0 20px;
+        }
+
+        .profile-header {
+            margin-bottom: 2rem;
+        }
+
+        .profile-header h1 {
+            font-size: 24px;
+            margin: 0;
+            color: #fff;
+        }
+
+        .profile-header p {
+            color: #666;
+            margin: 4px 0 0;
         }
 
         .profile-tabs {
             display: flex;
-            gap: 1rem;
+            gap: 2rem;
             margin-bottom: 2rem;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 1rem;
+            border-bottom: 1px solid #333;
         }
 
         .profile-tab {
-            padding: 0.5rem 1rem;
-            border: none;
-            background: none;
-            font-size: 1rem;
+            padding: 8px 0;
             color: #666;
             cursor: pointer;
-            border-radius: 4px;
-        }
-
-        .profile-tab:hover {
-            background: #f5f5f5;
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 14px;
         }
 
         .profile-tab.active {
-            color: #4CAF50;
-            font-weight: 500;
-            background: #e8f5e9;
+            color: #fff;
         }
 
-        .profile-section {
+        .profile-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: #ff1cf7;
+        }
+
+        .tab-content {
             display: none;
-            background: white;
-            padding: 2rem;
+            background: #1a1a1a;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 24px;
         }
 
-        .profile-section.active {
+        .tab-content.active {
             display: block;
         }
 
-        .info-field {
-            margin-bottom: 1.5rem;
+        .field-group {
+            margin-bottom: 24px;
         }
 
-        .info-field label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: #333;
-        }
-
-        .field-content {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+        .field-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
         }
 
         .field-value {
-            flex: 1;
-            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .edit-btn, .add-btn, .modify-btn {
-            padding: 0.5rem 1rem;
-            border: 1px solid #ddd;
-            background: white;
+        .field-text {
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .edit-button {
+            padding: 6px 12px;
+            background: #333;
+            border: none;
             border-radius: 4px;
+            color: #fff;
             cursor: pointer;
+            font-size: 14px;
         }
 
-        .edit-btn:hover, .add-btn:hover, .modify-btn:hover {
-            background: #f5f5f5;
+        .edit-button:hover {
+            background: #444;
+        }
+
+        .subscription-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #1a472e;
+            color: #4caf50;
         }
 
         .subscription-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .subscription-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .subscription-card h3 {
-            margin: 0 0 1rem 0;
-            color: #333;
-        }
-
-        .usage-details {
-            margin-bottom: 1.5rem;
-        }
-
-        .usage-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
-        }
-
-        .usage-item:last-child {
-            border-bottom: none;
-        }
-
-        .usage-item label {
-            color: #666;
-        }
-
-        .usage-value {
-            font-weight: 500;
-            color: #333;
-        }
-
-        .plan-features {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .plan-features li {
-            margin-bottom: 0.5rem;
-            padding-left: 1.5rem;
-            position: relative;
-            color: #666;
-        }
-
-        .plan-features li::before {
-            content: "✓";
-            position: absolute;
-            left: 0;
-            color: #4CAF50;
-        }
-
-        .billing-details {
-            margin-bottom: 1.5rem;
-        }
-
-        .billing-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
-        }
-
-        .billing-item:last-child {
-            border-bottom: none;
-        }
-
-        .billing-item label {
-            color: #666;
-        }
-
-        .billing-actions {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .subscription-actions {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
         }
 
         .credits-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            margin-bottom: 24px;
         }
 
-        .about-credits {
-            color: #1976d2;
-            text-decoration: none;
-        }
-
-        .credits-amount {
+        .credits-count {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
+            gap: 8px;
         }
 
-        .leaf-icon {
-            font-size: 2rem;
+        .credits-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
         }
 
-        .amount {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .credits-alert {
-            background: #fff3e0;
-            padding: 1rem;
+        .credits-warning {
+            background: #332b00;
+            border: 1px solid #665500;
+            padding: 16px;
             border-radius: 4px;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .alert-icon {
-            font-size: 1.2rem;
-        }
-
-        .alert-note {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 0.5rem;
-        }
-
-        .credits-details {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .details-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .records-filter {
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            margin: 24px 0;
+            color: #ffb300;
         }
 
         .credits-table {
             width: 100%;
             border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        .credits-table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            color: #666;
+            font-weight: normal;
+        }
+
+        .credits-table td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            color: #fff;
+        }
+
+        .primary-button {
+            background: #ff1cf7;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .secondary-button {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .credits-section {
+            background: #1E1E1E;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .credits-display {
+            font-size: 24px;
+            margin: 16px 0;
+        }
+
+        #userCredits {
+            color: #ff1cf7;
+            font-weight: bold;
+        }
+
+        .buy-credits-btn {
+            background: #ff1cf7;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .buy-credits-btn:hover {
+            background: #ff45f9;
+        }
+
+        .credits-popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .credits-popup-content {
+            background: #1E1E1E;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            padding: 24px;
+            color: #fff;
+        }
+
+        .credits-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .credits-popup-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .credits-slider {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .credits-info {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .credits-amount {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ff1cf7;
+            margin: 24px 0;
+        }
+
+        .credits-expiry {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+
+        .credits-details {
+            margin-top: 32px;
+        }
+
+        .credits-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
         }
 
         .credits-table th,
         .credits-table td {
-            padding: 1rem;
+            padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #333;
         }
 
         .credits-table th {
-            font-weight: 500;
-            color: #666;
+            color: #999;
+            font-weight: normal;
         }
 
-        .credits-table tr:last-child td {
-            border-bottom: none;
+        .credits-history {
+            margin-top: 2rem;
         }
-
-        .btn-primary {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .btn-primary:hover {
-            background: #43A047;
-        }
-
-        .btn-secondary {
-            background: white;
-            color: #666;
-            border: 1px solid #ddd;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .btn-secondary:hover {
-            background: #f5f5f5;
-        }
-
-        /* Credit packages modal */
-        .credit-packages {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .credit-package {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .credit-package:hover {
-            transform: translateY(-2px);
-        }
-
-        .credit-package.selected {
-            border: 2px solid #4CAF50;
-        }
-
-        .credits-amount {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 0.5rem;
-        }
-
-        .price-amount {
-            font-size: 1.5rem;
-            color: #4CAF50;
-            margin-bottom: 1rem;
-        }
-
-        .discount-amount {
-            color: #f44336;
-            font-size: 0.9rem;
-            margin-bottom: 1rem;
-        }
-
-        .select-button {
+        .credits-table {
             width: 100%;
-            padding: 0.75rem;
-            border: none;
-            background: #4CAF50;
-            color: white;
-            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .credits-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .credits-table th, .credits-table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        .credits-table th {
+            background-color: #1a1a1a;
+            color: #fff;
+        }
+        .credit-add {
+            color: #4CAF50;
+        }
+        .credit-use {
+            color: #f44336;
+        }
+
+        .credits-selector {
+            margin-top: 2rem;
+        }
+
+        .slider-container {
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            color: #666;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            background: #333;
+            height: 4px;
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #ff1cf7;
+            border-radius: 50%;
             cursor: pointer;
         }
 
-        .select-button:hover {
-            background: #43A047;
-        }
-
-        .credits-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-
-        .credit-package {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .selected-credits {
             text-align: center;
-        }
-
-        .credit-package h3 {
-            margin: 0 0 1rem 0;
-            color: #333;
-        }
-
-        .credit-package .price {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #4CAF50;
+            font-size: 24px;
+            color: #fff;
             margin: 1rem 0;
         }
 
-        .btn-purchase {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: #4CAF50;
+        #selectedCredits {
+            color: #ff1cf7;
+            font-weight: bold;
+        }
+
+        .purchase-button {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            background: #ff1cf7;
             color: white;
+            text-align: center;
+            border-radius: 8px;
             text-decoration: none;
-            border-radius: 4px;
-            transition: background 0.2s;
+            margin-top: 2rem;
+            font-weight: bold;
+            transition: background 0.3s;
         }
 
-        .btn-purchase:hover {
-            background: #388E3C;
+        .purchase-button:hover {
+            background: #d600ce;
         }
 
-        .credits-note {
-            font-size: 0.9rem;
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
             color: #666;
-            margin-top: 1rem;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .close-button:hover {
+            color: #fff;
         }
     </style>
 </head>
 <body>
     <div id="topbar"></div>
+
     <div class="profile-container">
-        <div class="profile-tabs">
-            <button class="profile-tab active">Personal Info</button>
-            <button class="profile-tab">Subscription</button>
-            <button class="profile-tab">Credits</button>
+        <div class="profile-header">
+            <h1>Profile Settings</h1>
+            <p>Manage your personal information</p>
         </div>
 
-        <div class="profile-content">
-            <!-- Personal Info Section -->
-            <div class="profile-section personal-info active">
-                <h2>Personal Info</h2>
-                <div class="info-field">
-                    <label>Name</label>
-                    <div class="field-content">
-                        <span class="field-value name-value"></span>
-                        <button class="edit-btn">Edit</button>
-                    </div>
-                </div>
-                <div class="info-field">
-                    <label>Email</label>
-                    <div class="field-content">
-                        <span class="field-value email-value"></span>
-                    </div>
-                </div>
-                <div class="info-field">
-                    <label>Role</label>
-                    <div class="field-content">
-                        <span class="field-value role-value"></span>
-                    </div>
+        <div class="profile-tabs">
+            <button class="profile-tab active" onclick="switchTab('personal')">Personal Info</button>
+            <button class="profile-tab" onclick="switchTab('subscription')">Subscription</button>
+            <button class="profile-tab" onclick="switchTab('credits')">Credits</button>
+        </div>
+
+        <!-- Personal Info Tab -->
+        <div id="personal" class="tab-content active">
+            <div class="field-group">
+                <div class="field-label">Nickname</div>
+                <div class="field-value">
+                    <span id="nickname" class="field-text"></span>
+                    <button class="edit-button" onclick="editField('nickname')">Edit</button>
                 </div>
             </div>
 
-            <!-- Subscription Section -->
-            <div class="profile-section subscription">
-                <h2>Your Plan <span class="status-badge active">ACTIVE</span></h2>
-                <div class="subscription-grid">
-                    <div class="subscription-card">
+            <div class="field-group">
+                <div class="field-label">Bio</div>
+                <div class="field-value">
+                    <span id="bio" class="field-text">Briefly introduce yourself in this space...</span>
+                    <button class="edit-button" onclick="editField('bio')">Edit</button>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="field-label">Social Media Links</div>
+                <div class="field-value">
+                    <div class="field-text">No social media links added</div>
+                    <button class="edit-button" onclick="addSocialMedia()">Add</button>
+                </div>
+            </div>
+
+            <div class="field-group">
+                <div class="field-label">Email Address</div>
+                <div class="field-value">
+                    <span id="email" class="field-text"></span>
+                    <button class="edit-button" onclick="modifyEmail()">Modify Email</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subscription Tab -->
+        <div id="subscription" class="tab-content">
+            <div class="subscription-header">
+                <h2>Your Standard Plan</h2>
+            </div>
+            <div class="subscription-content">
+                <div class="subscription-info">
+                    <div class="info-section">
+                        <h3>Credits</h3>
+                        <div class="credits-info">
+                            <span id="subscriptionCredits" class="credits-amount">0</span>
+                            <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
+                        </div>
+                    </div>
+                    <div class="info-section">
                         <h3>Usage Details</h3>
-                        <div class="usage-details">
-                            <div class="usage-item">
-                                <label>Credits</label>
-                                <div class="usage-value">
-                                    <span class="remaining-credits">0</span>
-                                    <span>Credits</span>
-                                </div>
+                        <div class="usage-stats">
+                            <div class="stat-item">
+                                <label>Credits:</label>
+                                <span id="currentCredits">0</span>
                             </div>
-                            <div class="usage-item">
-                                <label>Plan</label>
-                                <div class="usage-value plan-value">Free</div>
+                            <div class="stat-item">
+                                <label>Stickers Generated:</label>
+                                <span id="stickersGenerated">0</span>
                             </div>
-                            <div class="usage-item">
-                                <label>Status</label>
-                                <div class="usage-value status-value">Active</div>
+                            <div class="stat-item">
+                                <label>Collections:</label>
+                                <span id="collectionsCount">0</span>
                             </div>
                         </div>
-                        <button class="btn-primary buy-credits-btn">Buy more credits</button>
+                    </div>
+                    <div class="info-section">
+                        <h3>Plan Features</h3>
+                        <ul class="plan-features">
+                            <li>1000 credits</li>
+                            <li>General commercial terms</li>
+                            <li>Optional more credits on top</li>
+                            <li>3 concurrent fast jobs</li>
+                            <li>Unlimited Collections</li>
+                        </ul>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Credits Section -->
-            <div class="profile-section credits">
-                <div class="credits-header">
-                    <h2>My Credits</h2>
-                    <a href="#" class="about-credits">About Credits?</a>
+        <!-- Credits Tab -->
+        <div id="credits" class="tab-content">
+            <div class="credits-header">
+                <h2>My Credits</h2>
+                <a href="#" style="color: #ff1cf7;">About Credits?</a>
+            </div>
+            <div class="credits-info">
+                <div class="current-credits">
+                    <h3>Current Balance</h3>
+                    <p class="credits-amount" id="totalCredits">0</p>
                 </div>
-                <div class="credits-amount">
-                    <div class="leaf-icon">🍃</div>
-                    <span class="amount credits-value">0</span>
-                    <button class="btn-primary buy-credits-btn">Buy Credits</button>
-                </div>
-                <div class="credits-section">
-                    <h2>Purchase Credits</h2>
-                    <div class="credits-grid">
-                        <div class="credit-package">
-                            <h3>100 Credits</h3>
-                            <p class="price">$10</p>
-                            <a href="https://warriorplus.com/o2/buy/xxx/product_100" class="btn-purchase">Purchase</a>
-                        </div>
-                        <div class="credit-package">
-                            <h3>200 Credits</h3>
-                            <p class="price">$18</p>
-                            <a href="https://warriorplus.com/o2/buy/xxx/product_200" class="btn-purchase">Purchase</a>
-                        </div>
-                        <div class="credit-package">
-                            <h3>500 Credits</h3>
-                            <p class="price">$40</p>
-                            <a href="https://warriorplus.com/o2/buy/xxx/product_500" class="btn-purchase">Purchase</a>
-                        </div>
-                        <div class="credit-package">
-                            <h3>1000 Credits</h3>
-                            <p class="price">$70</p>
-                            <a href="https://warriorplus.com/o2/buy/xxx/product_1000" class="btn-purchase">Purchase</a>
-                        </div>
-                    </div>
-                    <p class="credits-note">* Credits will be added to your account automatically after purchase</p>
-                </div>
-                <div class="credits-details">
-                    <div class="details-header">
-                        <h3>Credits History</h3>
-                        <select class="records-filter">
-                            <option value="all">All records</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                        </select>
-                    </div>
-                    <table class="credits-table">
+                <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy Credits</button>
+            </div>
+            <div class="credits-history">
+                <h3>Credits History</h3>
+                <div class="credits-table">
+                    <table>
                         <thead>
                             <tr>
                                 <th>Time</th>
                                 <th>Type</th>
-                                <th>Credits</th>
-                                <th>Status</th>
+                                <th>Amount</th>
+                                <th>Details</th>
                             </tr>
                         </thead>
                         <tbody id="creditsHistory">
+                            <!-- Credit history will be populated here -->
                         </tbody>
                     </table>
                 </div>
@@ -533,177 +544,220 @@
         </div>
     </div>
 
-    <script src="/topbar.js"></script>
-    <script>
-        // Credit package options
-        const creditPackages = [
-            { id: 'basic', credits: 100, price: 10, discount: 0 },
-            { id: 'standard', credits: 500, price: 45, discount: 10 },
-            { id: 'pro', credits: 1000, price: 80, discount: 20 },
-            { id: 'enterprise', credits: 5000, price: 350, discount: 30 }
-        ];
+    <!-- Credits Popup -->
+    <div class="credits-popup" id="creditsPopup">
+        <div class="credits-popup-content">
+            <h2>Buy Credits</h2>
+            <div class="credits-selector">
+                <div class="slider-container">
+                    <input type="range" id="creditsSlider" min="100" max="1000" step="100" value="100">
+                    <div class="slider-labels">
+                        <span>100</span>
+                        <span>1000</span>
+                    </div>
+                </div>
+                <div class="selected-credits">
+                    <span id="selectedCredits">100</span> Credits
+                </div>
+                <a href="#" id="purchaseLink" class="purchase-button">Purchase Credits</a>
+            </div>
+            <button class="close-button" onclick="hideCreditsPopup()">×</button>
+        </div>
+    </div>
 
-        // Initialize page
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+        
+        // Initialize topbar
         document.addEventListener('DOMContentLoaded', async () => {
-            // Load user data
-            await loadUserData();
+            await createTopbar();
+            loadUserProfile();
+        });
+    </script>
+    <script src="/js/credits-popup.js"></script>
+    <script>
+        // Load credit products configuration
+        let creditProducts;
+        fetch('/api/subscription/credits/packages')
+            .then(response => response.json())
+            .then(products => {
+                creditProducts = products;
+                updatePurchaseLink(); // Update link once products are loaded
+            })
+            .catch(error => console.error('Error loading credit products:', error));
 
-            // Setup tab switching
-            const tabs = document.querySelectorAll('.profile-tab');
-            const sections = document.querySelectorAll('.profile-section');
+        function showCreditsPopup() {
+            document.getElementById('creditsPopup').style.display = 'flex';
+            updatePurchaseLink();
+        }
 
-            tabs.forEach((tab, index) => {
-                tab.addEventListener('click', () => {
-                    // Remove active class from all tabs and sections
-                    tabs.forEach(t => t.classList.remove('active'));
-                    sections.forEach(s => s.classList.remove('active'));
+        function hideCreditsPopup() {
+            document.getElementById('creditsPopup').style.display = 'none';
+        }
 
-                    // Add active class to clicked tab and corresponding section
-                    tab.classList.add('active');
-                    sections[index].classList.add('active');
-                });
-            });
+        function updatePurchaseLink() {
+            if (!creditProducts) return; // Wait for products to load
 
-            // Setup buy credits buttons
-            document.querySelectorAll('.buy-credits-btn').forEach(btn => {
-                btn.addEventListener('click', showCreditPackages);
-            });
+            const selectedCredits = parseInt(document.getElementById('creditsSlider').value);
+            const product = creditProducts.find(p => p.credits === selectedCredits);
+            
+            if (product) {
+                document.getElementById('purchaseLink').href = product.purchaseUrl;
+                document.getElementById('selectedCredits').textContent = selectedCredits;
+            }
+        }
 
-            // Load credits history
-            await loadCreditsHistory();
+        // Initialize slider
+        document.getElementById('creditsSlider').addEventListener('input', updatePurchaseLink);
+
+        // Close popup when clicking outside
+        document.getElementById('creditsPopup').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideCreditsPopup();
+            }
         });
 
+        // Tab switching functionality
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.profile-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.profile-tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+        }
+
         // Load user data
-        async function loadUserData() {
-            try {
-                const response = await fetch('/api/user/profile', {
-                    credentials: 'include'
-                });
-                const userData = await response.json();
+        fetch('/api/auth/me')
+            .then(response => response.json())
+            .then(user => {
+                document.getElementById('nickname').textContent = user.name;
+                document.getElementById('email').textContent = user.email;
+                if (user.bio) {
+                    document.getElementById('bio').textContent = user.bio;
+                }
+            })
+            .catch(error => console.error('Error loading user data:', error));
 
-                // Update personal info
-                document.querySelector('.name-value').textContent = userData.name;
-                document.querySelector('.email-value').textContent = userData.email;
-                document.querySelector('.role-value').textContent = userData.role;
-
-                // Update subscription info
-                document.querySelector('.remaining-credits').textContent = userData.credits;
-                document.querySelector('.credits-value').textContent = userData.credits;
-                document.querySelector('.plan-value').textContent = userData.subscription?.plan || 'Free';
-                document.querySelector('.status-value').textContent = userData.subscription?.status || 'Active';
-
-            } catch (error) {
-                console.error('Error loading user data:', error);
-            }
+        function editField(field) {
+            const element = document.getElementById(field);
+            const currentValue = element.textContent;
+            const input = document.createElement('input');
+            input.value = currentValue;
+            input.style.width = '100%';
+            input.style.background = '#333';
+            input.style.border = 'none';
+            input.style.padding = '8px';
+            input.style.borderRadius = '4px';
+            input.style.color = '#fff';
+            
+            input.onblur = function() {
+                updateField(field, input.value);
+            };
+            
+            element.textContent = '';
+            element.appendChild(input);
+            input.focus();
         }
 
-        // Load credits history
-        async function loadCreditsHistory() {
-            try {
-                const response = await fetch('/api/user/profile', {
-                    credentials: 'include'
-                });
-                const userData = await response.json();
-                const creditRequests = userData.creditRequests || [];
-
-                const historyTable = document.getElementById('creditsHistory');
-                historyTable.innerHTML = creditRequests.map(request => `
-                    <tr>
-                        <td>${new Date(request.requestedAt).toLocaleString()}</td>
-                        <td>Purchase</td>
-                        <td>${request.credits}</td>
-                        <td>${request.status}</td>
-                    </tr>
-                `).join('');
-
-            } catch (error) {
-                console.error('Error loading credits history:', error);
-            }
+        function updateField(field, value) {
+            fetch('/api/auth/update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ [field]: value }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(field).textContent = value;
+            })
+            .catch(error => console.error('Error updating field:', error));
         }
 
-        // Show credit packages modal
-        async function showCreditPackages() {
-            const selectedPackageId = await new Promise((resolve) => {
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.innerHTML = `
-                    <div class="modal-content">
-                        <h2>Select Credit Package</h2>
-                        <div class="credit-packages">
-                            ${creditPackages.map(item => `
-                                <div class="credit-package" data-id="${item.id}">
-                                    <div class="credits-amount">${item.credits} Credits</div>
-                                    <div class="price-amount">$${item.price}</div>
-                                    ${item.discount ? `
-                                        <div class="discount-amount">${item.discount}% discount</div>
-                                    ` : ''}
-                                    <button class="select-button">Select</button>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="modal-footer">
-                            <button class="close-button">Cancel</button>
-                        </div>
-                    </div>
-                `;
+        function addSocialMedia() {
+            alert('Social media link addition functionality coming soon!');
+        }
 
-                document.body.appendChild(modal);
+        function modifyEmail() {
+            alert('Email modification functionality coming soon!');
+        }
 
-                // Add click handlers
-                modal.querySelectorAll('.credit-package').forEach(element => {
-                    element.addEventListener('click', () => {
-                        const id = element.dataset.id;
-                        document.body.removeChild(modal);
-                        resolve(id);
-                    });
-                });
-
-                // Close on outside click or cancel
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal || e.target.classList.contains('close-button')) {
-                        document.body.removeChild(modal);
-                        resolve(null);
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const user = await response.json();
+                
+                // Update all credit displays
+                const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+                creditDisplays.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = user.credits || 0;
                     }
                 });
-            });
 
-            if (selectedPackageId) {
-                const selectedItem = creditPackages.find(item => item.id === selectedPackageId);
-                if (selectedItem) {
-                    await requestCredits(selectedItem);
+                // Update usage statistics
+                if (user.statistics) {
+                    document.getElementById('stickersGenerated').textContent = user.statistics.generationsCount || 0;
+                    document.getElementById('collectionsCount').textContent = user.statistics.collectionsCount || 0;
                 }
-            }
-        }
-
-        // Request credits
-        async function requestCredits(selectedItem) {
-            try {
-                const response = await fetch('/api/credits/request', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        credits: selectedItem.credits,
-                        price: selectedItem.price,
-                        discount: selectedItem.discount
-                    })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to submit credit request');
-                }
-
-                const result = await response.json();
-                alert('Credit request submitted successfully! Please wait for admin approval.');
-                await loadCreditsHistory();
+                
+                // Update other profile information
+                document.getElementById('nickname').textContent = user.name || '';
+                document.getElementById('email').textContent = user.email || '';
+                
+                // Load credit history
+                await loadCreditHistory();
             } catch (error) {
-                console.error('Error requesting credits:', error);
-                alert(error.message || 'Failed to submit credit request. Please try again.');
+                console.error('Error loading profile:', error);
             }
         }
+
+        // Update all credit displays when credits change
+        function updateAllCreditDisplays(credits) {
+            const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+            creditDisplays.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = credits;
+                }
+            });
+        }
+
+        // Listen for credit updates
+        window.addEventListener('creditsUpdated', (event) => {
+            if (event.detail && typeof event.detail.credits === 'number') {
+                updateAllCreditDisplays(event.detail.credits);
+            }
+        });
+
+        async function loadCreditHistory() {
+            try {
+                const response = await fetch('/api/credits/history');
+                const history = await response.json();
+                
+                const historyTable = document.getElementById('creditsHistory');
+                historyTable.innerHTML = history.map(item => `
+                    <tr>
+                        <td>${new Date(item.timestamp).toLocaleString()}</td>
+                        <td class="${item.type === 'add' ? 'credit-add' : 'credit-use'}">${item.type === 'add' ? 'Added' : 'Used'}</td>
+                        <td>${item.type === 'add' ? '+' : '-'}${item.amount}</td>
+                        <td>${item.details}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading credit history:', error);
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUserProfile();
+        });
     </script>
 </body>
 </html>

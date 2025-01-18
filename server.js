@@ -133,10 +133,9 @@ app.post('/api/auth/logout', (req, res) => {
     res.json({ message: 'Logged out successfully' });
 });
 
-// Serve static files
-app.use(express.static(path.resolve(__dirname, 'public')));
-app.use('/storage/images', express.static(path.resolve(__dirname, 'storage', 'images')));
-app.use(express.static(__dirname));
+// Serve static files from the public directory
+app.use(express.static(join(__dirname, 'public')));
+app.use('/storage/images', express.static(join(__dirname, 'storage', 'images')));
 
 // Image generation endpoint
 app.post('/api/generate', authMiddleware, async (req, res) => {
@@ -291,15 +290,12 @@ app.get('/login', (req, res) => {
             // Invalid token, continue to login page
         }
     }
-    res.sendFile(join(__dirname, 'login.html'));
+    res.sendFile(join(__dirname, 'public', 'login.html'));
 });
-
 
 app.get('/register', (req, res) => {
-    res.sendFile(path.join(__dirname, 'register.html')); // Adjust the path if necessary
+    res.sendFile(join(__dirname, 'public', 'register.html')); 
 });
-
-
 
 app.post('/api/auth/login', async (req, res) => {
     try {
@@ -356,37 +352,38 @@ app.get('/', (req, res) => {
     if (token) {
         try {
             jwt.verify(token, process.env.JWT_SECRET);
-            res.sendFile(join(__dirname, 'index.html'));
+            res.sendFile(join(__dirname, 'public', 'index.html'));
         } catch (error) {
-            res.sendFile(join(__dirname, 'login.html'));
+            res.sendFile(join(__dirname, 'public', 'login.html'));
         }
     } else {
-        res.sendFile(join(__dirname, 'login.html'));
+        res.sendFile(join(__dirname, 'public', 'login.html'));
     }
 });
 
 app.get('/collections', authMiddleware, (req, res) => {
     console.log('Serving collections page for user:', req.user.email);
-    res.sendFile(join(__dirname, 'collections.html'));
+    res.sendFile(join(__dirname, 'public', 'collections.html'));
 });
 
 app.get('/generate', authMiddleware, (req, res) => {
     console.log('Serving generate page for user:', req.user.email);
-    res.sendFile(join(__dirname, 'generate.html'));
+    res.sendFile(join(__dirname, 'public', 'generate.html'));
 });
 
 app.get('/profile', authMiddleware, (req, res) => {
     console.log('Serving profile page for user:', req.user.email);
-    res.sendFile(join(__dirname, 'profile.html'));
+    res.sendFile(join(__dirname, 'public', 'profile.html'));
 });
 
 app.get('/index.html', authMiddleware, (req, res) => {
-    res.sendFile(join(__dirname, 'index.html'));
+    res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/admin', authMiddleware, adminAuth, (req, res) => {
-    res.sendFile(join(__dirname, 'admin.html'));
+    res.sendFile(join(__dirname, 'public', 'admin.html'));
 });
+
 app.get('/admin-variables', authMiddleware, adminAuth, (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin-variables.html'));
 });
@@ -457,18 +454,14 @@ app.put('/api/admin/users/:id/role', authMiddleware, adminAuth, async (req, res)
 });
 
 // Update user plan
-app.put('/api/admin/users/:id/plan', authMiddleware, adminAuth, async (req, res) => {
+app.post('/api/admin/users/:userId/plan', authMiddleware, adminAuth, async (req, res) => {
     try {
+        const { userId } = req.params;
         const { plan } = req.body;
+
         const user = await User.findByIdAndUpdate(
-            req.params.id,
-            { 
-                $set: { 
-                    'subscription.plan': plan,
-                    'subscription.startDate': new Date(),
-                    'subscription.status': 'active'
-                }
-            },
+            userId,
+            { $set: { plan } },
             { new: true }
         );
 
@@ -476,12 +469,12 @@ app.put('/api/admin/users/:id/plan', authMiddleware, adminAuth, async (req, res)
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ success: true, user });
+        res.json(user);
     } catch (error) {
         console.error('Error updating user plan:', error);
         res.status(500).json({ error: 'Failed to update user plan' });
     }
-};
+});
 
 // Public routes
 app.get('/auth', (req, res) => {
@@ -495,7 +488,7 @@ app.get('/auth', (req, res) => {
             // Token is invalid, continue to auth page
         }
     }
-    res.sendFile(join(__dirname, 'auth.html'));
+    res.sendFile(join(__dirname, 'public', 'auth.html'));
 });
 
 // API routes - Update to be user-specific
@@ -665,7 +658,7 @@ app.get('/api/collections/:id', authMiddleware, async (req, res) => {
 
 app.get('/collection/:id', authMiddleware, (req, res) => {
     console.log('Serving collection page for user:', req.user.email);
-    res.sendFile(join(__dirname, 'collection.html'));
+    res.sendFile(join(__dirname, 'public', 'collection.html'));
 });
 
 app.post('/api/collections/:collectionId/images', authMiddleware, async (req, res) => {
@@ -827,7 +820,7 @@ app.get('/test', (req, res) => {
 
 // Serve admin-styles page
 app.get('/admin-styles', authMiddleware, adminAuth, (req, res) => {
-    res.sendFile(join(__dirname, 'admin-styles.html'));
+    res.sendFile(join(__dirname, 'public', 'admin-styles.html'));
 });
 
 // Style management endpoints
@@ -1051,7 +1044,7 @@ app.delete('/api/styles/:id', authMiddleware, adminAuth, async (req, res) => {
 
 // Admin route to manage styles
 app.get('/admin/styles', authMiddleware, adminAuth, (req, res) => {
-    res.sendFile(join(__dirname, 'admin-styles.html'));
+    res.sendFile(join(__dirname, 'public', 'admin-styles.html'));
 });
 
 // Get all styles with sorting

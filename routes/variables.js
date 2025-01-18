@@ -30,7 +30,14 @@ router.get('/category/:category', auth, adminAuth, async (req, res) => {
 // Update variable
 router.put('/:id', auth, adminAuth, async (req, res) => {
     try {
+        console.log('Updating variable:', req.params.id);
+        console.log('New value:', req.body.value);
+
         const { value } = req.body;
+        if (value === undefined) {
+            return res.status(400).json({ error: 'Value is required' });
+        }
+
         const variable = await Variable.findByIdAndUpdate(
             req.params.id,
             { 
@@ -41,13 +48,15 @@ router.put('/:id', auth, adminAuth, async (req, res) => {
         );
         
         if (!variable) {
+            console.error('Variable not found:', req.params.id);
             return res.status(404).json({ error: 'Variable not found' });
         }
 
+        console.log('Variable updated successfully:', variable);
         res.json(variable);
     } catch (error) {
         console.error('Error updating variable:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: error.message || 'Server error' });
     }
 });
 
@@ -135,16 +144,17 @@ export async function initializeVariables() {
         }
     ];
 
-    for (const variable of defaultVariables) {
-        try {
+    try {
+        for (const variable of defaultVariables) {
             await Variable.findOneAndUpdate(
                 { key: variable.key },
                 variable,
                 { upsert: true, new: true }
             );
-        } catch (error) {
-            console.error(`Error initializing variable ${variable.key}:`, error);
         }
+        console.log('Variables initialized successfully');
+    } catch (error) {
+        console.error('Error initializing variable:', error);
     }
 }
 

@@ -150,7 +150,6 @@
                 const response = await fetch('/api/variables');
                 const variables = await response.json();
 
-                // Group variables by category
                 const categories = {};
                 variables.forEach(variable => {
                     if (!categories[variable.category]) {
@@ -162,35 +161,23 @@
                 const container = document.getElementById('variablesContent');
                 container.innerHTML = '';
 
-                // Create sections for each category
                 Object.entries(categories).forEach(([category, vars]) => {
                     const section = document.createElement('div');
                     section.className = 'category-section';
-                    section.innerHTML = `
-                        <div class="category-header">
-                            <h2>${category}</h2>
-                        </div>
-                        <div class="variables-list">
-                            ${vars.map(variable => createVariableItem(variable)).join('')}
-                        </div>
-                    `;
+                    
+                    const header = document.createElement('div');
+                    header.className = 'category-header';
+                    header.innerHTML = `<h2>${category}</h2>`;
+                    section.appendChild(header);
+
+                    const list = document.createElement('div');
+                    list.className = 'variables-list';
+                    vars.forEach(variable => {
+                        list.appendChild(createVariableItem(variable));
+                    });
+                    section.appendChild(list);
+
                     container.appendChild(section);
-                });
-
-                // Add event listeners
-                document.querySelectorAll('.variable-value').forEach(textarea => {
-                    textarea.addEventListener('input', function() {
-                        const saveButton = this.parentElement.querySelector('.save-button');
-                        saveButton.disabled = false;
-                    });
-                });
-
-                document.querySelectorAll('.save-button').forEach(button => {
-                    button.addEventListener('click', function() {
-                        const variableId = this.dataset.id;
-                        const textarea = this.parentElement.querySelector('.variable-value');
-                        saveVariable(variableId, textarea);
-                    });
                 });
             } catch (error) {
                 console.error('Error loading variables:', error);
@@ -199,69 +186,82 @@
 
         function createVariableItem(variable) {
             const isArray = Array.isArray(variable.value);
-            const value = typeof variable.value === 'object' 
-                ? JSON.stringify(variable.value, null, 2)
-                : variable.value;
-            
-            return `
-                <div class="variable-item">
-                    <div class="variable-header">
-                        <div>
-                            <h3 class="variable-key">${variable.key}</h3>
-                            <p class="variable-description">${variable.description}</p>
-                        </div>
-                        <button class="save-button" data-id="${variable._id}" disabled>Save</button>
-                    </div>
-                    <textarea class="variable-value ${isArray ? 'array' : ''}" spellcheck="false">${value}</textarea>
-                    <div class="last-updated">Last updated: ${new Date(variable.lastUpdated).toLocaleString()}</div>
-                    <div class="error-message"></div>
-                    <div class="success-message"></div>
+            const isObject = typeof variable.value === 'object' && variable.value !== null && !isArray;
+            const value = isArray || isObject ? JSON.stringify(variable.value, null, 4) : variable.value;
+            const lastUpdated = new Date(variable.lastUpdated).toLocaleString();
+
+            const div = document.createElement('div');
+            div.className = 'variable-item';
+            div.innerHTML = `
+                <div class="variable-header">
+                    <h3 class="variable-key">${variable.key}</h3>
+                    <p class="variable-description">${variable.description}</p>
+                    <p class="last-updated">Last updated: ${lastUpdated}</p>
                 </div>
+                <textarea class="variable-value ${isArray || isObject ? 'array' : ''}" 
+                        rows="${isArray || isObject ? 10 : 1}">${value}</textarea>
+                <button class="save-button" disabled>Save</button>
+                <div class="error-message"></div>
+                <div class="success-message"></div>
             `;
-        }
 
-        async function saveVariable(id, textarea) {
-            const errorMessage = textarea.parentElement.querySelector('.error-message');
-            const successMessage = textarea.parentElement.querySelector('.success-message');
-            const saveButton = textarea.parentElement.querySelector('.save-button');
-            
-            errorMessage.style.display = 'none';
-            successMessage.style.display = 'none';
+            const textarea = div.querySelector('.variable-value');
+            const saveButton = div.querySelector('.save-button');
+            const errorMsg = div.querySelector('.error-message');
+            const successMsg = div.querySelector('.success-message');
 
-            try {
-                // Try to parse if it's JSON
-                let value = textarea.value;
+            textarea.addEventListener('input', () => {
+                saveButton.disabled = false;
+                errorMsg.style.display = 'none';
+                successMsg.style.display = 'none';
+            });
+
+            saveButton.addEventListener('click', async () => {
                 try {
-                    value = JSON.parse(value);
-                } catch {
-                    // If it's not valid JSON, use the raw value
+                    errorMsg.style.display = 'none';
+                    successMsg.style.display = 'none';
+
+                    let value = textarea.value.trim();
+                    if ((value.startsWith('{') && value.endsWith('}')) || 
+                        (value.startsWith('[') && value.endsWith(']'))) {
+                        try {
+                            value = JSON.parse(value);
+                        } catch (e) {
+                            throw new Error('Invalid JSON format. Please check your syntax.');
+                        }
+                    }
+
+                    const response = await fetch(`/api/variables/${variable._id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ value })
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Failed to save variable');
+                    }
+
+                    const result = await response.json();
+                    saveButton.disabled = true;
+                    successMsg.textContent = 'Saved successfully!';
+                    successMsg.style.display = 'block';
+                    
+                    const lastUpdated = div.querySelector('.last-updated');
+                    if (lastUpdated) {
+                        lastUpdated.textContent = `Last updated: ${new Date(result.lastUpdated).toLocaleString()}`;
+                    }
+                } catch (error) {
+                    errorMsg.textContent = error.message || 'Failed to save. Please try again.';
+                    errorMsg.style.display = 'block';
                 }
+            });
 
-                const response = await fetch(`/api/variables/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ value })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to save variable');
-                }
-
-                saveButton.disabled = true;
-                successMessage.textContent = 'Saved successfully!';
-                successMessage.style.display = 'block';
-                
-                // Reload the page after 1 second to show updated values
-                setTimeout(() => {
-                    loadVariables();
-                }, 1000);
-            } catch (error) {
-                console.error('Error saving variable:', error);
-                errorMessage.textContent = 'Failed to save. Please try again.';
-                errorMessage.style.display = 'block';
-            }
+            return div;
         }
 
         // Initialize page
