@@ -61,6 +61,28 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Auth check for main page
+app.use('/', (req, res, next) => {
+    // Skip auth check for login page and assets
+    if (req.path === '/login' || 
+        req.path === '/register' || 
+        req.path.startsWith('/js/') || 
+        req.path.startsWith('/css/') || 
+        req.path.startsWith('/images/') ||
+        req.path.startsWith('/api/')) {
+        return next();
+    }
+
+    const token = req.cookies.token;
+    if (!token) {
+        if (req.path === '/') {
+            return res.redirect('/login');
+        }
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    next();
+});
+
 // Serve static files from public directory
 app.use(express.static(join(__dirname, 'public')));
 
