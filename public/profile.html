@@ -643,14 +643,23 @@
     </div>
 
     <script type="module">
-        import { createTopbar } from '/js/components/Topbar.js';
-        
-        // Initialize topbar
-        document.addEventListener('DOMContentLoaded', async () => {
-            await createTopbar();
-            loadUserProfile();
-        });
-    </script>
+    import { createTopbar } from '/js/components/Topbar.js';
+    
+    // Initialize topbar and credits popup
+    document.addEventListener('DOMContentLoaded', async () => {
+        await createTopbar();
+        loadUserProfile();
+        // Set Credits tab as active by default
+        switchTab('credits');
+    });
+</script>
+
+<script>
+    // Credits popup functionality
+    function showCreditsPopup() {
+        window.creditsPopup.show();
+    }
+</script>
     <script src="/js/credits-popup.js"></script>
     <script>
         // Load credit products configuration
