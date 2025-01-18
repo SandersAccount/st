@@ -44,6 +44,116 @@ const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
 });
 
+// Middleware
+app.use(cors({
+    origin: [
+        'http://localhost:3005',
+        'http://localhost:5173',
+        'https://st.onrender.com'
+    ],
+    credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Serve static files from public directory
+app.use(express.static(join(__dirname, 'public')));
+
+// IPN routes (must be before auth middleware and without authentication)
+app.post('/api/ipn/credits/notification', async (req, res) => {
+    try {
+        console.log('Received WarriorPlus IPN notification:', req.body);
+        console.log('Incoming Request Headers:', req.headers);
+
+        const {
+            event,
+            itemNumber,
+            buyerEmail,
+            buyerName,
+            securityKey,
+            transactionStatus,
+            saleId
+        } = req.body;
+
+        console.log('Event:', event);
+        console.log('Item Number:', itemNumber);
+        console.log('Buyer Email:', buyerEmail);
+        console.log('Buyer Name:', buyerName);
+        console.log('Security Key:', securityKey);
+
+        // Get security key from variables
+        const securityVar = await Variable.findOne({ key: 'securityKey' });
+        const validKey = securityVar ? securityVar.value : '4350c564f7cef14a92c7ff7ff9c6dce';
+
+        // Validate security key
+        if (securityKey !== validKey) {
+            console.error('Invalid security key');
+            return res.status(401).json({ error: 'Invalid security key' });
+        }
+
+        let user = await User.findOne({ email: buyerEmail });
+        
+        // Get StickerLab product info
+        const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
+        const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
+
+        if (!user) {
+            // Create a new user without a password
+            if (itemNumber === stickerLabProductId) {
+                user = new User({
+                    email: buyerEmail,
+                    name: buyerName,
+                    registered: false,
+                    creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
+                });
+                await user.save();
+                console.log('New user created from IPN:', user.email);
+            }
+        } else {
+            // Update existing user with purchase information
+            if (itemNumber === stickerLabProductId) {
+                user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+            }
+        }
+
+        // Handle credit assignment
+        if (itemNumber === stickerLabProductId) {
+            // Logic for handling StickerLab purchase
+            user.credits = (user.credits || 0) + 100;
+            console.log('User gained access to StickerLab and received 100 credits:', user.email);
+        }
+
+        // Check for sale event and completed status
+        if (event === 'sale' && transactionStatus.toUpperCase() === 'COMPLETED') {
+            await user.save();
+
+            console.log('Credits added successfully:', {
+                userId: user._id,
+                email: user.email,
+                credits: user.credits,
+                newBalance: user.credits,
+                transactionId: saleId
+            });
+
+            res.json({
+                message: 'Credits added successfully',
+                userId: user._id,
+                credits: user.credits
+            });
+        } else {
+            console.log('Unhandled IPN event or status:', { event, transactionStatus });
+            res.json({ message: 'Notification received but no action taken' });
+        }
+    } catch (error) {
+        console.error('Error processing IPN:', error);
+        res.status(500).json({ 
+            error: 'Failed to process IPN notification',
+            details: error.message
+        });
+    }
+});
+
 // Auth middleware for protected routes
 const authMiddleware = async (req, res, next) => {
     try {
@@ -72,19 +182,6 @@ const authMiddleware = async (req, res, next) => {
         return res.redirect('/login'); // Redirect to login on error
     }
 };
-
-// Middleware
-app.use(cors({
-    origin: [
-        'http://localhost:3005',
-        'https://sticker-app-xcap.onrender.com'
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-}));
-app.use(express.json());
-app.use(cookieParser());
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -134,7 +231,6 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Serve static files from the public directory
-app.use(express.static(join(__dirname, 'public')));
 app.use('/storage/images', express.static(join(__dirname, 'storage', 'images')));
 
 // Image generation endpoint
@@ -347,18 +443,8 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Protected routes - require authentication
-app.get('/', (req, res) => {
-    const token = req.cookies.token;
-    if (token) {
-        try {
-            jwt.verify(token, process.env.JWT_SECRET);
-            res.sendFile(join(__dirname, 'public', 'index.html'));
-        } catch (error) {
-            res.sendFile(join(__dirname, 'public', 'login.html'));
-        }
-    } else {
-        res.sendFile(join(__dirname, 'public', 'login.html'));
-    }
+app.get('/', authMiddleware, (req, res) => {
+    res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/collections', authMiddleware, (req, res) => {

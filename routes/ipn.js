@@ -25,35 +25,35 @@ async function validateIPN(securityKey) {
     return securityKey === validKey;
 }
 
-// Handle IPN notifications
+// Handle IPN notifications from WarriorPlus
 router.post('/notification', async (req, res) => {
     try {
-        console.log('Received IPN notification:', req.body);
+        console.log('Received WarriorPlus IPN notification:', req.body);
         console.log('Incoming Request Headers:', req.headers);
 
         const {
-            WP_ACTION,
-            WP_ITEM_NUMBER,
-            WP_BUYER_EMAIL,
-            WP_BUYER_NAME,
-            WP_SECURITYKEY,
-            WP_PAYMENT_STATUS,
-            WP_SALE
+            event,
+            itemNumber,
+            buyerEmail,
+            buyerName,
+            securityKey,
+            transactionStatus,
+            saleId
         } = req.body;
 
-        console.log('WP_ACTION:', WP_ACTION);
-        console.log('WP_ITEM_NUMBER:', WP_ITEM_NUMBER);
-        console.log('WP_BUYER_EMAIL:', WP_BUYER_EMAIL);
-        console.log('WP_BUYER_NAME:', WP_BUYER_NAME);
-        console.log('WP_SECURITYKEY:', WP_SECURITYKEY);
+        console.log('Event:', event);
+        console.log('Item Number:', itemNumber);
+        console.log('Buyer Email:', buyerEmail);
+        console.log('Buyer Name:', buyerName);
+        console.log('Security Key:', securityKey);
 
         // Validate security key
-        if (!await validateIPN(WP_SECURITYKEY)) {
+        if (!await validateIPN(securityKey)) {
             console.error('Invalid security key');
             return res.status(401).json({ error: 'Invalid security key' });
         }
 
-        let user = await User.findOne({ email: WP_BUYER_EMAIL });
+        let user = await User.findOne({ email: buyerEmail });
         
         // Get StickerLab product info
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
@@ -61,10 +61,10 @@ router.post('/notification', async (req, res) => {
 
         if (!user) {
             // Create a new user without a password
-            if (WP_ITEM_NUMBER === stickerLabProductId) {
+            if (itemNumber === stickerLabProductId) {
                 user = new User({
-                    email: WP_BUYER_EMAIL,
-                    name: WP_BUYER_NAME,
+                    email: buyerEmail,
+                    name: buyerName,
                     registered: false,
                     creditHistory: [{ product: 'StickerLab', purchasedAt: new Date() }],
                 });
@@ -73,19 +73,19 @@ router.post('/notification', async (req, res) => {
             }
         } else {
             // Update existing user with purchase information
-            if (WP_ITEM_NUMBER === stickerLabProductId) {
+            if (itemNumber === stickerLabProductId) {
                 user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
             }
         }
 
         // Handle credit assignment
-        if (WP_ITEM_NUMBER === stickerLabProductId) {
+        if (itemNumber === stickerLabProductId) {
             // Logic for handling StickerLab purchase
             user.credits = (user.credits || 0) + 100;
             console.log('User gained access to StickerLab and received 100 credits:', user.email);
         } else {
             // Handle credit package purchase
-            const credits = await getCreditAmount(WP_ITEM_NUMBER);
+            const credits = await getCreditAmount(itemNumber);
             if (credits) {
                 user.credits = (user.credits || 0) + credits;
                 user.creditHistory.push({
@@ -96,8 +96,8 @@ router.post('/notification', async (req, res) => {
             }
         }
 
-        // Case-insensitive status check
-        if (WP_ACTION === 'sale' && WP_PAYMENT_STATUS.toUpperCase() === 'COMPLETED') {
+        // Check for sale event and completed status
+        if (event === 'sale' && transactionStatus.toUpperCase() === 'COMPLETED') {
             await user.save();
 
             console.log('Credits added successfully:', {
@@ -105,7 +105,7 @@ router.post('/notification', async (req, res) => {
                 email: user.email,
                 credits: user.credits,
                 newBalance: user.credits,
-                transactionId: WP_SALE
+                transactionId: saleId
             });
 
             res.json({
@@ -114,7 +114,7 @@ router.post('/notification', async (req, res) => {
                 credits: user.credits
             });
         } else {
-            console.log('Unhandled IPN action or status:', { WP_ACTION, WP_PAYMENT_STATUS });
+            console.log('Unhandled IPN event or status:', { event, transactionStatus });
             res.json({ message: 'Notification received but no action taken' });
         }
     } catch (error) {
