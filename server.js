@@ -103,10 +103,10 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
         
         // Get product IDs from variables
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
-        const creditsVar = await Variable.findOne({ key: 'creditsProduct' });
+        const creditsVar = await Variable.findOne({ key: 'creditProducts' });
         
         const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
-        const creditsProductId = creditsVar ? creditsVar.value.productId : 'wso_h0pdbg';
+        const creditProducts = creditsVar ? creditsVar.value : [];
 
         if (!user) {
             // Create a new user without a password if it's a StickerLab purchase
@@ -133,19 +133,26 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
             if (itemNumber === stickerLabProductId) {
                 creditsToAdd = 100;
                 productName = 'StickerLab';
-                user.creditHistory.push({ product: productName, purchasedAt: new Date() });
-                console.log('User gained access to StickerLab and received 100 credits:', user.email);
-            } else if (itemNumber === creditsProductId) {
-                creditsToAdd = 100;
-                productName = 'Credits Package';
-                user.creditHistory.push({ product: productName, purchasedAt: new Date() });
-                console.log('User purchased 100 credits package:', user.email);
             } else {
-                console.log('Unknown product:', itemNumber);
-                return res.status(400).json({ error: 'Unknown product' });
+                // Find the credit package that matches the product ID
+                const creditPackage = creditProducts.find(p => p.productId === itemNumber);
+                if (creditPackage) {
+                    creditsToAdd = creditPackage.credits;
+                    productName = `${creditsToAdd} Credits Package`;
+                    console.log('Found credit package:', creditPackage);
+                } else {
+                    console.log('Unknown product:', itemNumber);
+                    return res.status(400).json({ error: 'Unknown product' });
+                }
             }
 
-            // Add credits to user
+            // Add credits and update history
+            user.creditHistory.push({ 
+                product: productName, 
+                purchasedAt: new Date(),
+                credits: creditsToAdd,
+                transactionId: saleId
+            });
             user.credits = (user.credits || 0) + creditsToAdd;
             await user.save();
 
