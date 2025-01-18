@@ -425,13 +425,43 @@
         </div>
 
         <div class="profile-tabs">
-            <button class="profile-tab active" onclick="switchTab('personal')">Personal Info</button>
-            <button class="profile-tab" onclick="switchTab('subscription')">Subscription</button>
             <button class="profile-tab" onclick="switchTab('credits')">Credits</button>
+            <button class="profile-tab" onclick="switchTab('personal')">Personal Info</button>
+            <!-- Subscription tab hidden for future use -->
+            <button class="profile-tab" onclick="switchTab('subscription')" style="display: none;">Subscription</button>
+        </div>
+
+        <!-- Credits Tab -->
+        <div id="credits" class="tab-content active">
+            <div class="credits-header">
+                <h2>My Credits</h2>
+                <a href="#" style="color: #ff1cf7;">About Credits?</a>
+            </div>
+            <div class="credits-info">
+                <div class="current-credits">
+                    <span id="totalCredits">0</span> Credits Available
+                    <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
+                </div>
+            </div>
+            <div class="credits-history">
+                <h3>Credits History</h3>
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="creditsHistory">
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Personal Info Tab -->
-        <div id="personal" class="tab-content active">
+        <div id="personal" class="tab-content">
             <div class="field-group">
                 <div class="field-label">Nickname</div>
                 <div class="field-value">
@@ -506,39 +536,6 @@
                             <li>Unlimited Collections</li>
                         </ul>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Credits Tab -->
-        <div id="credits" class="tab-content">
-            <div class="credits-header">
-                <h2>My Credits</h2>
-                <a href="#" style="color: #ff1cf7;">About Credits?</a>
-            </div>
-            <div class="credits-info">
-                <div class="current-credits">
-                    <h3>Current Balance</h3>
-                    <p class="credits-amount" id="totalCredits">0</p>
-                </div>
-                <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy Credits</button>
-            </div>
-            <div class="credits-history">
-                <h3>Credits History</h3>
-                <div class="credits-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>Type</th>
-                                <th>Amount</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody id="creditsHistory">
-                            <!-- Credit history will be populated here -->
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
@@ -737,26 +734,42 @@
 
         async function loadCreditHistory() {
             try {
-                const response = await fetch('/api/credits/history');
-                const history = await response.json();
+                const response = await fetch('/api/profile');
+                const user = await response.json();
                 
                 const historyTable = document.getElementById('creditsHistory');
-                historyTable.innerHTML = history.map(item => `
-                    <tr>
-                        <td>${new Date(item.timestamp).toLocaleString()}</td>
-                        <td class="${item.type === 'add' ? 'credit-add' : 'credit-use'}">${item.type === 'add' ? 'Added' : 'Used'}</td>
-                        <td>${item.type === 'add' ? '+' : '-'}${item.amount}</td>
-                        <td>${item.details}</td>
-                    </tr>
-                `).join('');
+                if (!user.creditHistory || user.creditHistory.length === 0) {
+                    historyTable.innerHTML = '<tr><td colspan="4">No credit history available</td></tr>';
+                    return;
+                }
+
+                historyTable.innerHTML = user.creditHistory.map(item => {
+                    const date = new Date(item.purchasedAt).toLocaleString();
+                    const type = 'Added'; // All entries are purchases
+                    const amount = item.credits || 100; // Default to 100 for older entries
+                    const details = item.product || 'Credit Purchase';
+                    
+                    return `
+                        <tr>
+                            <td>${date}</td>
+                            <td class="credit-add">${type}</td>
+                            <td>+${amount}</td>
+                            <td>${details}</td>
+                        </tr>
+                    `;
+                }).join('');
             } catch (error) {
                 console.error('Error loading credit history:', error);
+                const historyTable = document.getElementById('creditsHistory');
+                historyTable.innerHTML = '<tr><td colspan="4">Error loading credit history</td></tr>';
             }
         }
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', () => {
             loadUserProfile();
+            // Set Credits tab as active by default
+            switchTab('credits');
         });
     </script>
 </body>

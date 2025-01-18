@@ -64,6 +64,16 @@ app.use(cookieParser());
 // Serve static files from public directory
 app.use(express.static(join(__dirname, 'public')));
 
+// Main route - check authentication
+app.get('/', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        res.redirect('/login');
+    } else {
+        res.sendFile(join(__dirname, 'public', 'index.html'));
+    }
+});
+
 // IPN routes (must be before auth middleware and without authentication)
 app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
     try {
@@ -474,10 +484,6 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Protected routes - require authentication
-app.get('/', authMiddleware, (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'index.html'));
-});
-
 app.get('/collections', authMiddleware, (req, res) => {
     console.log('Serving collections page for user:', req.user.email);
     res.sendFile(join(__dirname, 'public', 'collections.html'));
