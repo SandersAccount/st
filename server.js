@@ -29,6 +29,7 @@ import { localStyleStorage } from './utils/localStyleStorage.js';
 import axios from 'axios';
 import ipnRouter from './routes/ipn.js';
 import variablesRouter from './routes/variables.js';
+import Variable from './models/Variable.js';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,9 @@ const port = process.env.PORT || 3005;
 const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
 });
+
+// Configure multer for form data
+const upload = multer();
 
 // Middleware
 app.use(cors({
@@ -61,12 +65,21 @@ app.use(cookieParser());
 app.use(express.static(join(__dirname, 'public')));
 
 // IPN routes (must be before auth middleware and without authentication)
-app.post('/api/ipn/credits/notification', async (req, res) => {
+app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
     try {
         console.log('Received WarriorPlus IPN notification:', req.body);
         console.log('Incoming Request Headers:', req.headers);
 
-        const {
+        // Parse form data
+        const event = req.body.event || req.body.WP_ACTION;
+        const itemNumber = req.body.itemNumber || req.body.WP_ITEM_NUMBER;
+        const buyerEmail = req.body.buyerEmail || req.body.WP_BUYER_EMAIL;
+        const buyerName = req.body.buyerName || req.body.WP_BUYER_NAME;
+        const securityKey = req.body.securityKey || req.body.WP_SECURITYKEY;
+        const transactionStatus = req.body.transactionStatus || req.body.WP_PAYMENT_STATUS;
+        const saleId = req.body.saleId || req.body.WP_SALE;
+
+        console.log('Parsed data:', {
             event,
             itemNumber,
             buyerEmail,
@@ -74,13 +87,7 @@ app.post('/api/ipn/credits/notification', async (req, res) => {
             securityKey,
             transactionStatus,
             saleId
-        } = req.body;
-
-        console.log('Event:', event);
-        console.log('Item Number:', itemNumber);
-        console.log('Buyer Email:', buyerEmail);
-        console.log('Buyer Name:', buyerName);
-        console.log('Security Key:', securityKey);
+        });
 
         // Get security key from variables
         const securityVar = await Variable.findOne({ key: 'securityKey' });
@@ -194,7 +201,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
+const uploadFiles = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
@@ -929,7 +936,7 @@ app.get('/api/admin/styles', authMiddleware, adminAuth, async (req, res) => {
     }
 });
 
-app.post('/api/admin/styles', authMiddleware, adminAuth, upload.single('image'), async (req, res) => {
+app.post('/api/admin/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1021,7 +1028,7 @@ app.get('/api/styles', async (req, res) => {
     }
 });
 
-app.post('/api/styles', authMiddleware, adminAuth, upload.single('image'), async (req, res) => {
+app.post('/api/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1065,7 +1072,7 @@ app.post('/api/styles', authMiddleware, adminAuth, upload.single('image'), async
     }
 });
 
-app.put('/api/styles/:id', authMiddleware, adminAuth, upload.single('image'), async (req, res) => {
+app.put('/api/styles/:id', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
     try {
         const { name, prompt } = req.body;
         const updateData = { name, prompt };
@@ -1157,7 +1164,7 @@ app.get('/api/styles', async (req, res) => {
     }
 });
 
-app.post('/api/styles', authMiddleware, adminAuth, upload.single('image'), async (req, res) => {
+app.post('/api/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1201,7 +1208,7 @@ app.post('/api/styles', authMiddleware, adminAuth, upload.single('image'), async
     }
 });
 
-app.put('/api/styles/:id', authMiddleware, adminAuth, upload.single('image'), async (req, res) => {
+app.put('/api/styles/:id', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
     try {
         const { name, prompt } = req.body;
         const updateData = { name, prompt };
@@ -1302,7 +1309,7 @@ app.get('/api/settings', async (req, res) => {
 });
 
 // Update settings
-app.put('/api/settings', authMiddleware, adminAuth, upload.single('logo'), async (req, res) => {
+app.put('/api/settings', authMiddleware, adminAuth, uploadFiles.single('logo'), async (req, res) => {
     try {
         console.log('Updating settings:', req.body);
         
