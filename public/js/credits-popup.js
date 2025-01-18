@@ -225,5 +225,5 @@ class CreditsPopup {
 // Initialize the popup
 const creditsPopup = new CreditsPopup();
 
-// Export for use in other files
-export default creditsPopup;
+// Make it available globally
+window.creditsPopup = creditsPopup;
