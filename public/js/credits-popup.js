@@ -3,13 +3,8 @@ const creditPackages = [
     { credits: 100, discount: 0, price: 10.00 },
     { credits: 200, discount: 4, price: 19.20 },
     { credits: 300, discount: 6, price: 28.20 },
-    { credits: 400, discount: 8, price: 36.80 },
-    { credits: 500, discount: 10, price: 45.00 },
-    { credits: 600, discount: 12, price: 52.80 },
-    { credits: 700, discount: 14, price: 60.20 },
-    { credits: 800, discount: 16, price: 67.20 },
-    { credits: 900, discount: 18, price: 73.80 },
-    { credits: 1000, discount: 20, price: 80.00 }
+    { credits: 500, discount: 8, price: 46.00 },
+    { credits: 1000, discount: 10, price: 90.00 }
 ];
 
 class CreditsPopup {
@@ -23,26 +18,22 @@ class CreditsPopup {
         popup.className = 'credits-popup';
         popup.innerHTML = `
             <div class="credits-popup-content">
-                <div class="credits-popup-header">
-                    <h2>Buy Credits</h2>
-                    <button class="close-button">&times;</button>
-                </div>
-                <div class="credits-popup-body">
-                    <div class="credits-slider-container">
-                        <input type="range" min="100" max="1000" step="100" value="100" class="credits-slider">
-                        <div class="credits-value">
-                            <span class="selected-credits">100</span> Credits
-                        </div>
-                    </div>
+                <button class="close-button">&times;</button>
+                <h2>Buy Credits</h2>
+                <div class="credits-selection">
+                    <input type="range" class="credits-slider" min="100" max="1000" step="100" value="100">
                     <div class="credits-info">
-                        <div class="price-info">
-                            <div class="original-price">$10.00</div>
-                            <div class="discount">0% OFF</div>
-                            <div class="final-price">Final Price: $10.00</div>
-                        </div>
+                        <span class="selected-credits">100</span> Credits
                     </div>
-                    <button class="buy-credits-button">Buy Credits</button>
+                    <div class="price-info">
+                        <div class="price">
+                            <span class="original-price">$10.00</span>
+                            <span class="discount">0% OFF</span>
+                        </div>
+                        <div class="final-price">Final Price: $10.00</div>
+                    </div>
                 </div>
+                <button class="buy-credits-button">Buy Now</button>
             </div>
         `;
         document.body.appendChild(popup);
@@ -172,18 +163,27 @@ class CreditsPopup {
 
         slider.addEventListener('input', (e) => {
             const credits = parseInt(e.target.value);
-            const package = creditPackages.find(p => p.credits === credits);
+            const selectedPackage = creditPackages.find(p => p.credits === credits);
             
             popup.querySelector('.selected-credits').textContent = credits;
-            popup.querySelector('.original-price').textContent = `$${package.price.toFixed(2)}`;
-            popup.querySelector('.discount').textContent = `${package.discount}% OFF`;
-            popup.querySelector('.final-price').textContent = `Final Price: $${package.price.toFixed(2)}`;
+            popup.querySelector('.original-price').textContent = `$${selectedPackage.price.toFixed(2)}`;
+            popup.querySelector('.discount').textContent = `${selectedPackage.discount}% OFF`;
+            
+            const finalPrice = selectedPackage.price * (1 - selectedPackage.discount / 100);
+            popup.querySelector('.final-price').textContent = `Final Price: $${finalPrice.toFixed(2)}`;
         });
 
         buyButton.addEventListener('click', async () => {
             const credits = parseInt(slider.value);
+            const selectedPackage = creditPackages.find(p => p.credits === credits);
+            
+            if (!selectedPackage) {
+                alert('Please select a valid credit package');
+                return;
+            }
+
             try {
-                const response = await fetch('/api/credits/request', {
+                const response = await fetch('/api/credits/purchase', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -192,15 +192,21 @@ class CreditsPopup {
                     body: JSON.stringify({ credits })
                 });
 
-                if (response.ok) {
-                    alert('Credit purchase request sent to admin!');
-                    this.hide();
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to process credit purchase');
+                }
+
+                const data = await response.json();
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
                 } else {
-                    throw new Error('Failed to request credits');
+                    this.hide();
+                    alert('Thank you for your purchase! Your credits will be added soon.');
                 }
             } catch (error) {
-                console.error('Error requesting credits:', error);
-                alert('Failed to request credits. Please try again.');
+                console.error('Error purchasing credits:', error);
+                alert(error.message || 'Failed to process credit purchase. Please try again.');
             }
         });
     }
@@ -220,4 +226,4 @@ class CreditsPopup {
 const creditsPopup = new CreditsPopup();
 
 // Export for use in other files
-window.creditsPopup = creditsPopup;
+export default creditsPopup;

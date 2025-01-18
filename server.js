@@ -101,12 +101,15 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
 
         let user = await User.findOne({ email: buyerEmail });
         
-        // Get StickerLab product info
+        // Get product IDs from variables
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
+        const creditsVar = await Variable.findOne({ key: 'creditsProduct' });
+        
         const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
+        const creditsProductId = creditsVar ? creditsVar.value.productId : 'wso_h0pdbg';
 
         if (!user) {
-            // Create a new user without a password
+            // Create a new user without a password if it's a StickerLab purchase
             if (itemNumber === stickerLabProductId) {
                 user = new User({
                     email: buyerEmail,
@@ -116,29 +119,41 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
                 });
                 await user.save();
                 console.log('New user created from IPN:', user.email);
-            }
-        } else {
-            // Update existing user with purchase information
-            if (itemNumber === stickerLabProductId) {
-                user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
+            } else {
+                console.error('Cannot add credits: User not found:', buyerEmail);
+                return res.status(404).json({ error: 'User not found' });
             }
         }
 
-        // Handle credit assignment
-        if (itemNumber === stickerLabProductId) {
-            // Logic for handling StickerLab purchase
-            user.credits = (user.credits || 0) + 100;
-            console.log('User gained access to StickerLab and received 100 credits:', user.email);
-        }
-
-        // Check for sale event and completed status
+        // Update credit history and assign credits based on product
         if (event === 'sale' && transactionStatus.toUpperCase() === 'COMPLETED') {
+            let creditsToAdd = 0;
+            let productName = '';
+
+            if (itemNumber === stickerLabProductId) {
+                creditsToAdd = 100;
+                productName = 'StickerLab';
+                user.creditHistory.push({ product: productName, purchasedAt: new Date() });
+                console.log('User gained access to StickerLab and received 100 credits:', user.email);
+            } else if (itemNumber === creditsProductId) {
+                creditsToAdd = 100;
+                productName = 'Credits Package';
+                user.creditHistory.push({ product: productName, purchasedAt: new Date() });
+                console.log('User purchased 100 credits package:', user.email);
+            } else {
+                console.log('Unknown product:', itemNumber);
+                return res.status(400).json({ error: 'Unknown product' });
+            }
+
+            // Add credits to user
+            user.credits = (user.credits || 0) + creditsToAdd;
             await user.save();
 
             console.log('Credits added successfully:', {
                 userId: user._id,
                 email: user.email,
-                credits: user.credits,
+                product: productName,
+                creditsAdded: creditsToAdd,
                 newBalance: user.credits,
                 transactionId: saleId
             });
@@ -146,7 +161,9 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
             res.json({
                 message: 'Credits added successfully',
                 userId: user._id,
-                credits: user.credits
+                product: productName,
+                creditsAdded: creditsToAdd,
+                newBalance: user.credits
             });
         } else {
             console.log('Unhandled IPN event or status:', { event, transactionStatus });
