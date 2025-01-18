@@ -124,7 +124,7 @@ export async function createTopbar() {
                 // Add menu items
                 const menuItems = [
                     { text: 'Personal Info', href: '/profile' },
-                    { text: 'Subscription', href: '/profile?tab=subscription' },
+                    { text: 'Credits', href: '/profile?tab=credits' },
                     { text: 'Log Out', href: '#', action: handleLogout }
                 ];
 
