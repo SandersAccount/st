@@ -86,16 +86,6 @@ app.use('/', (req, res, next) => {
 // Serve static files from public directory
 app.use(express.static(join(__dirname, 'public')));
 
-// Main route - check authentication
-app.get('/', (req, res) => {
-    const token = req.cookies.token;
-    if (!token) {
-        res.redirect('/login');
-    } else {
-        res.sendFile(join(__dirname, 'public', 'index.html'));
-    }
-});
-
 // IPN routes (must be before auth middleware and without authentication)
 app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
     try {
