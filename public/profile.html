@@ -936,8 +936,16 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', () => {
             loadUserProfile();
-            // Set Credits tab as active by default
-            switchTab('credits');
+            
+            // Check URL parameters for active tab
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeTab = urlParams.get('tab') || 'credits';
+            switchTab(activeTab);
+            
+            // Load credit history if on credits tab
+            if (activeTab === 'credits') {
+                loadCreditHistory();
+            }
         });
     </script>
 </body>

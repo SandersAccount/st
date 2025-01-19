@@ -292,7 +292,8 @@ export class CollectionModal extends HTMLElement {
         }
         this.imageData = {
             imageUrl: data.imageUrl,
-            prompt: data.prompt || ''
+            prompt: data.prompt || '',
+            generationId: data.generationId || ''
         };
     }
 
@@ -302,11 +303,6 @@ export class CollectionModal extends HTMLElement {
                 throw new Error('No image data available');
             }
 
-            const imageUrl = this.imageData.imageUrl;
-            if (imageUrl === 'undefined' || !imageUrl) {
-                throw new Error('Invalid image URL');
-            }
-
             const response = await fetch(`/api/collections/${collectionId}/images`, {
                 method: 'POST',
                 headers: {
@@ -314,42 +310,41 @@ export class CollectionModal extends HTMLElement {
                 },
                 credentials: 'include',
                 body: JSON.stringify({
-                    imageUrl: imageUrl,
-                    prompt: this.imageData.prompt
+                    imageUrl: this.imageData.imageUrl,
+                    prompt: this.imageData.prompt,
+                    generationId: this.imageData.generationId
                 })
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to add image to collection');
+                throw new Error('Failed to add to collection');
             }
 
-            // Hide modal and show success message
+            // Show success message
+            const toast = document.createElement('toast-message');
+            toast.setAttribute('message', 'Added to collection');
+            toast.setAttribute('type', 'success');
+            document.body.appendChild(toast);
+
+            // Hide modal
             this.hide();
-            
-            // Dispatch the event both on the element and window
-            const event = new CustomEvent('imageAddedToCollection', {
+
+            // Dispatch event to notify parent components
+            this.dispatchEvent(new CustomEvent('imageAddedToCollection', {
                 bubbles: true,
                 composed: true,
-                detail: { collectionId }
-            });
-            
-            // Dispatch on the element itself
-            this.dispatchEvent(event);
-            
-            // Also dispatch on window to ensure it can be caught anywhere
-            window.dispatchEvent(new CustomEvent('imageAddedToCollection', {
-                detail: { collectionId }
+                detail: {
+                    collectionId,
+                    imageUrl: this.imageData.imageUrl
+                }
             }));
-            
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Added to collection', 'success');
+
         } catch (error) {
             console.error('Error adding to collection:', error);
-            const toast = document.createElement('toast-notification');
+            const toast = document.createElement('toast-message');
+            toast.setAttribute('message', 'Failed to add to collection');
+            toast.setAttribute('type', 'error');
             document.body.appendChild(toast);
-            toast.show(error.message, 'error');
         }
     }
 
@@ -360,6 +355,22 @@ export class CollectionModal extends HTMLElement {
         }
         newCollectionModal.showNewCollectionDialog();
     }
+}
+
+export function setupCollectionModal() {
+    // Listen for addToCollection events
+    window.addEventListener('addToCollection', (e) => {
+        const modal = document.querySelector('collection-modal');
+        if (!modal) return;
+
+        const { imageUrl, prompt, generationId } = e.detail;
+        modal.setImageData({
+            imageUrl,
+            prompt,
+            generationId
+        });
+        modal.show();
+    });
 }
 
 class NewCollectionModal extends HTMLElement {

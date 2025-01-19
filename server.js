@@ -50,41 +50,58 @@ const upload = multer();
 
 // Middleware
 app.use(cors({
-    origin: [
-        'http://localhost:3005',
-        'http://localhost:5173',
-        'https://st.onrender.com'
-    ],
+    origin: true,
     credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Auth check for main page
-app.use('/', (req, res, next) => {
-    // Skip auth check for login page and assets
-    if (req.path === '/login' || 
-        req.path === '/register' || 
-        req.path.startsWith('/js/') || 
-        req.path.startsWith('/css/') || 
-        req.path.startsWith('/images/') ||
-        req.path.startsWith('/api/')) {
+// Serve static files from public directory
+app.use(express.static(join(__dirname, 'public')));
+
+// Public endpoints that don't require auth
+app.get('/api/settings', auth, async (req, res) => {
+    try {
+        console.log('Fetching settings');
+        let settings = await Settings.findOne();
+        if (!settings) {
+            settings = new Settings({
+                appName: 'Sticker Generator',
+                useLogoInstead: false
+            });
+            await settings.save();
+        }
+        console.log('Sending settings:', settings);
+        res.json(settings);
+    } catch (error) {
+        console.error('Error getting settings:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// Auth check middleware for protected routes
+app.use('/api', (req, res, next) => {
+    // Skip auth check for public endpoints
+    if (req.path === '/settings' || 
+        req.path.startsWith('/auth/') || 
+        req.path.startsWith('/ipn/')) {
         return next();
     }
 
     const token = req.cookies.token;
     if (!token) {
-        if (req.path === '/') {
-            return res.redirect('/login');
-        }
         return res.status(401).json({ error: 'Authentication required' });
     }
-    next();
-});
 
-// Serve static files from public directory
-app.use(express.static(join(__dirname, 'public')));
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+});
 
 // IPN routes (must be before auth middleware and without authentication)
 app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
@@ -207,75 +224,8 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
     }
 });
 
-// Auth middleware for protected routes
-const authMiddleware = async (req, res, next) => {
-    try {
-        // Get token from cookie
-        const token = req.cookies.token;
-        
-        if (!token) {
-            // Redirect to login page if no token is found
-            return res.redirect('/login');
-        }
-
-        // Verify token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // Get user from database
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-            // Redirect to login page if user is not found
-            return res.redirect('/login');
-        }
-
-        req.user = user; // Attach user to request
-        next(); // Proceed to the next middleware or route handler
-    } catch (error) {
-        console.error('Authentication error:', error);
-        return res.redirect('/login'); // Redirect to login on error
-    }
-};
-
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
-const fileFilter = (req, file, cb) => {
-    // Accept only image files
-    if (file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only image files are allowed!'), false);
-    }
-};
-
-const uploadFiles = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
-    }
-});
-
-// Error handling middleware for multer
-app.use((err, req, res, next) => {
-    if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                error: 'File too large',
-                details: 'File size cannot exceed 5MB'
-            });
-        }
-        return res.status(400).json({
-            error: 'File upload error',
-            details: err.message
-        });
-    } else if (err) {
-        return res.status(500).json({
-            error: 'Server error',
-            details: err.message
-        });
-    }
-    next();
-});
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // Logout endpoint
 app.post('/api/auth/logout', (req, res) => {
@@ -287,15 +237,16 @@ app.post('/api/auth/logout', (req, res) => {
 app.use('/storage/images', express.static(join(__dirname, 'storage', 'images')));
 
 // Image generation endpoint
-app.post('/api/generate', authMiddleware, async (req, res) => {
+app.post('/api/generate', async (req, res) => {
     try {
         const { prompt } = req.body;
         console.log('Starting image generation...');
-        console.log('User:', req.user._id);
+        console.log('User:', req.userId);
         console.log('Prompt:', prompt);
 
         // Check if user has enough credits
-        if (req.user.credits < 1) {
+        const user = await User.findById(req.userId);
+        if (user.credits < 1) {
             return res.status(403).json({ error: 'Not enough credits' });
         }
 
@@ -338,7 +289,7 @@ app.post('/api/generate', authMiddleware, async (req, res) => {
 
         // Create the generation record
         const generation = new Generation({
-            userId: req.user._id,
+            userId: req.userId,
             prompt: prompt,
             imageUrl: savedImage.publicUrl, // Use the public URL from B2
             status: 'completed'
@@ -349,7 +300,7 @@ app.post('/api/generate', authMiddleware, async (req, res) => {
 
         // Deduct credits
         const updatedUser = await User.findByIdAndUpdate(
-            req.user._id,
+            req.userId,
             { $inc: { credits: -1 } },
             { new: true }
         );
@@ -369,7 +320,7 @@ app.post('/api/generate', authMiddleware, async (req, res) => {
 });
 
 // Image download endpoint
-app.get('/api/download', authMiddleware, async (req, res) => {
+app.get('/api/download', async (req, res) => {
     try {
         const { imageUrl } = req.query;
         
@@ -380,7 +331,7 @@ app.get('/api/download', authMiddleware, async (req, res) => {
         // Validate the image URL belongs to the user
         const generation = await Generation.findOne({
             imageUrl: imageUrl,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!generation) {
@@ -425,6 +376,128 @@ app.get('/api/download', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Download error:', error);
         res.status(500).json({ error: 'Failed to download image', details: error.message });
+    }
+});
+
+// Image upscaling endpoint
+app.post('/api/images/upscale', async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        console.log('Upscale request received for image:', imageUrl);
+        
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'Image URL is required' });
+        }
+
+        // Extract the filename from the URL
+        const urlParts = imageUrl.split('/');
+        const originalFilename = urlParts[urlParts.length - 1];
+        console.log('Original filename:', originalFilename);
+
+        // Validate the image URL belongs to the user
+        const generation = await Generation.findOne({
+            userId: req.userId,
+            imageUrl: { $regex: new RegExp(originalFilename + '$') }
+        });
+
+        console.log('Found generation:', generation);
+
+        if (!generation) {
+            return res.status(404).json({ error: 'Image not found' });
+        }
+
+        // Check if image is already upscaled
+        if (generation.isUpscaled) {
+            return res.status(400).json({ error: 'Image is already upscaled' });
+        }
+
+        console.log('Starting image upscaling...');
+        const modelVersion = "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b";
+        
+        console.log('Calling Replicate API with image:', imageUrl);
+        const output = await replicate.run(
+            modelVersion,
+            {
+                input: {
+                    image: imageUrl,
+                    scale: 2
+                }
+            }
+        );
+
+        console.log('Replicate API response:', output);
+
+        if (!output) {
+            console.error('Invalid output from Replicate:', output);
+            throw new Error('Failed to get upscaled image URL from Replicate');
+        }
+
+        // Handle both array and string responses from Replicate
+        const upscaledImageUrl = Array.isArray(output) ? output[0] : output;
+        console.log('Upscaled image URL:', upscaledImageUrl);
+
+        if (!upscaledImageUrl || typeof upscaledImageUrl !== 'string') {
+            throw new Error('Invalid upscaled image URL from Replicate');
+        }
+
+        // Download and save the upscaled image to the upscaled folder
+        console.log('Downloading upscaled image...');
+        const savedImage = await saveImageFromUrl(upscaledImageUrl, true);
+        console.log('Saved image:', savedImage);
+
+        if (!savedImage || !savedImage.publicUrl) {
+            console.error('Failed to save image:', savedImage);
+            throw new Error('Failed to save upscaled image');
+        }
+
+        // Update the generation record
+        generation.imageUrl = savedImage.publicUrl;
+        generation.isUpscaled = true;
+        await generation.save();
+
+        res.json({
+            imageUrl: savedImage.publicUrl,
+            isUpscaled: true
+        });
+    } catch (error) {
+        console.error('Error in image upscaling:', {
+            message: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ 
+            error: 'Failed to upscale image',
+            details: error.message
+        });
+    }
+});
+
+// Download endpoint
+app.get('/api/download', async (req, res) => {
+    const { imageUrl } = req.query;
+    
+    if (!imageUrl) {
+        return res.status(400).json({ error: 'Image URL is required' });
+    }
+
+    try {
+        // Fetch the image
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error('Failed to fetch image');
+        }
+
+        // Get the content type
+        const contentType = response.headers.get('content-type');
+        
+        // Set response headers
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="image-${Date.now()}.${contentType.split('/')[1]}"`);
+
+        // Pipe the response to the client
+        response.body.pipe(res);
+    } catch (error) {
+        console.error('Download error:', error);
+        res.status(500).json({ error: 'Failed to download image' });
     }
 });
 
@@ -496,34 +569,34 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Protected routes - require authentication
-app.get('/collections', authMiddleware, (req, res) => {
-    console.log('Serving collections page for user:', req.user.email);
+app.get('/collections', async (req, res) => {
+    console.log('Serving collections page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'collections.html'));
 });
 
-app.get('/generate', authMiddleware, (req, res) => {
-    console.log('Serving generate page for user:', req.user.email);
+app.get('/generate', async (req, res) => {
+    console.log('Serving generate page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'generate.html'));
 });
 
-app.get('/profile', authMiddleware, (req, res) => {
-    console.log('Serving profile page for user:', req.user.email);
+app.get('/profile', async (req, res) => {
+    console.log('Serving profile page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'profile.html'));
 });
 
-app.get('/index.html', authMiddleware, (req, res) => {
+app.get('/index.html', async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/admin', authMiddleware, adminAuth, (req, res) => {
+app.get('/admin', async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin.html'));
 });
 
-app.get('/admin-variables', authMiddleware, adminAuth, (req, res) => {
+app.get('/admin-variables', async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin-variables.html'));
 });
 
-app.get('/api/admin/users', authMiddleware, adminAuth, async (req, res) => {
+app.get('/api/admin/users', async (req, res) => {
     try {
         const users = await User.find({}).select('-password');
         res.json(users);
@@ -533,7 +606,7 @@ app.get('/api/admin/users', authMiddleware, adminAuth, async (req, res) => {
     }
 });
 
-app.get('/api/admin/stats', authMiddleware, adminAuth, async (req, res) => {
+app.get('/api/admin/stats', async (req, res) => {
     try {
         // Get user statistics
         const totalUsers = await User.countDocuments();
@@ -571,7 +644,7 @@ app.get('/api/admin/stats', authMiddleware, adminAuth, async (req, res) => {
 });
 
 // Toggle user role
-app.put('/api/admin/users/:id/role', authMiddleware, adminAuth, async (req, res) => {
+app.put('/api/admin/users/:id/role', async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
         if (!user) {
@@ -589,7 +662,7 @@ app.put('/api/admin/users/:id/role', authMiddleware, adminAuth, async (req, res)
 });
 
 // Update user plan
-app.post('/api/admin/users/:userId/plan', authMiddleware, adminAuth, async (req, res) => {
+app.post('/api/admin/users/:userId/plan', async (req, res) => {
     try {
         const { userId } = req.params;
         const { plan } = req.body;
@@ -627,23 +700,31 @@ app.get('/auth', (req, res) => {
 });
 
 // API routes - Update to be user-specific
-app.get('/api/generations', authMiddleware, async (req, res) => {
+app.get('/api/generations', async (req, res) => {
     try {
-        const generations = await Generation.find({ userId: req.user._id })
-            .sort({ timestamp: -1 })
+        const generations = await Generation.find({ userId: req.userId })
+            .sort({ createdAt: -1 })
             .limit(50);
-        res.json(generations);
+
+        // Add isUpscaled flag based on filename
+        const enhancedGenerations = generations.map(gen => {
+            const doc = gen.toObject();
+            doc.isUpscaled = doc.imageUrl.toLowerCase().endsWith('output.png');
+            return doc;
+        });
+
+        res.json(enhancedGenerations);
     } catch (error) {
         console.error('Error fetching generations:', error);
         res.status(500).json({ error: 'Failed to fetch generations' });
     }
 });
 
-app.get('/api/generations/recent', authMiddleware, async (req, res) => {
+app.get('/api/generations/recent', async (req, res) => {
     try {
-        console.log('Fetching recent generations for user:', req.user._id);
+        console.log('Fetching recent generations for user:', req.userId);
         const generations = await Generation
-            .find({ userId: req.user._id })
+            .find({ userId: req.userId })
             .sort({ createdAt: -1 })
             .limit(20);
         
@@ -683,11 +764,11 @@ app.get('/api/generations/recent', authMiddleware, async (req, res) => {
 });
 
 // Delete a generation
-app.delete('/api/generations/:id', authMiddleware, async (req, res) => {
+app.delete('/api/generations/:id', async (req, res) => {
     try {
         const generation = await Generation.findOne({
             _id: req.params.id,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!generation) {
@@ -706,7 +787,7 @@ app.delete('/api/generations/:id', authMiddleware, async (req, res) => {
 });
 
 // Collections API endpoints - Update to be user-specific
-app.post('/api/collections', authMiddleware, async (req, res) => {
+app.post('/api/collections', async (req, res) => {
     try {
         const { title } = req.body;
         if (!title) {
@@ -714,7 +795,7 @@ app.post('/api/collections', authMiddleware, async (req, res) => {
         }
 
         const collection = new Collection({
-            userId: req.user._id,
+            userId: req.userId,
             title,
             stats: {
                 imageCount: 0,
@@ -731,10 +812,10 @@ app.post('/api/collections', authMiddleware, async (req, res) => {
     }
 });
 
-app.get('/api/collections', authMiddleware, async (req, res) => {
+app.get('/api/collections', async (req, res) => {
     try {
-        console.log('Fetching collections for user:', req.user._id);
-        const collections = await Collection.find({ userId: req.user._id })
+        console.log('Fetching collections for user:', req.userId);
+        const collections = await Collection.find({ userId: req.userId })
             .sort({ 'stats.lastModified': -1 })
             .populate({
                 path: 'images',
@@ -773,30 +854,37 @@ app.get('/api/collections', authMiddleware, async (req, res) => {
     }
 });
 
-app.get('/api/collections/:id', authMiddleware, async (req, res) => {
+app.get('/api/collections/:id', auth, async (req, res) => {
     try {
         const collection = await Collection.findOne({
             _id: req.params.id,
-            userId: req.user._id
+            userId: req.userId
         }).populate('images', 'imageUrl prompt'); // Changed imageData to imageUrl to match schema
 
         if (!collection) {
             return res.status(404).json({ error: 'Collection not found' });
         }
 
-        res.json(collection);
+        // Add isUpscaled flag based on URL path
+        const enhancedCollection = collection.toObject();
+        enhancedCollection.images = enhancedCollection.images.map(image => ({
+            ...image,
+            isUpscaled: image.imageUrl.includes('/upscaled/')
+        }));
+
+        res.json(enhancedCollection);
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Failed to fetch collection' });
     }
 });
 
-app.get('/collection/:id', authMiddleware, (req, res) => {
-    console.log('Serving collection page for user:', req.user.email);
+app.get('/collection/:id', auth, async (req, res) => {
+    console.log('Serving collection page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'collection.html'));
 });
 
-app.post('/api/collections/:collectionId/images', authMiddleware, async (req, res) => {
+app.post('/api/collections/:collectionId/images', async (req, res) => {
     try {
         const { collectionId } = req.params;
         const { imageUrl, prompt } = req.body;
@@ -808,7 +896,7 @@ app.post('/api/collections/:collectionId/images', authMiddleware, async (req, re
         // Find the collection
         const collection = await Collection.findOne({
             _id: collectionId,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!collection) {
@@ -817,7 +905,7 @@ app.post('/api/collections/:collectionId/images', authMiddleware, async (req, re
 
         // Create a new Generation record
         const generation = new Generation({
-            userId: req.user._id,
+            userId: req.userId,
             prompt: prompt || 'No prompt',
             imageUrl: imageUrl,
             fileName: `collection-${Date.now()}.png`,
@@ -849,13 +937,13 @@ app.post('/api/collections/:collectionId/images', authMiddleware, async (req, re
     }
 });
 
-app.delete('/api/collections/:collectionId/images/:imageId', authMiddleware, async (req, res) => {
+app.delete('/api/collections/:collectionId/images/:imageId', async (req, res) => {
     try {
         const { collectionId, imageId } = req.params;
 
         const collection = await Collection.findOne({
             _id: collectionId,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!collection) {
@@ -884,11 +972,11 @@ app.delete('/api/collections/:collectionId/images/:imageId', authMiddleware, asy
 });
 
 // Delete generation - ensure user can only delete their own
-app.delete('/api/generations/:id', authMiddleware, async (req, res) => {
+app.delete('/api/generations/:id', async (req, res) => {
     try {
         const generation = await Generation.findOne({
             _id: req.params.id,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!generation) {
@@ -904,9 +992,9 @@ app.delete('/api/generations/:id', authMiddleware, async (req, res) => {
 });
 
 // User API routes
-app.get('/api/auth/user', authMiddleware, async (req, res) => {
+app.get('/api/auth/user', async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('-password');
+        const user = await User.findById(req.userId).select('-password');
         console.log('Fetched user data:', user);
         res.json(user);
     } catch (error) {
@@ -922,9 +1010,9 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // API route for user profile
-app.get('/api/profile', authMiddleware, async (req, res) => {
+app.get('/api/profile', async (req, res) => {
     try {
-        const user = await User.findById(req.user._id).select('-password');
+        const user = await User.findById(req.userId).select('-password');
         res.json(user);
     } catch (error) {
         console.error('Error fetching profile:', error);
@@ -933,11 +1021,11 @@ app.get('/api/profile', authMiddleware, async (req, res) => {
 });
 
 // Update profile
-app.put('/api/profile', authMiddleware, async (req, res) => {
+app.put('/api/profile', async (req, res) => {
     try {
         const { name, nickname, bio } = req.body;
         const user = await User.findByIdAndUpdate(
-            req.user._id,
+            req.userId,
             { $set: { name, nickname, bio } },
             { new: true }
         ).select('-password');
@@ -954,12 +1042,12 @@ app.get('/test', (req, res) => {
 });
 
 // Serve admin-styles page
-app.get('/admin-styles', authMiddleware, adminAuth, (req, res) => {
+app.get('/admin-styles', async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin-styles.html'));
 });
 
 // Style management endpoints
-app.get('/api/admin/styles', authMiddleware, adminAuth, async (req, res) => {
+app.get('/api/admin/styles', async (req, res) => {
     try {
         const styles = await Style.find().sort({ order: 1 });
         
@@ -978,7 +1066,7 @@ app.get('/api/admin/styles', authMiddleware, adminAuth, async (req, res) => {
     }
 });
 
-app.post('/api/admin/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
+app.post('/api/admin/styles', async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1022,7 +1110,7 @@ app.post('/api/admin/styles', authMiddleware, adminAuth, uploadFiles.single('ima
     }
 });
 
-app.delete('/api/admin/styles/:id', authMiddleware, adminAuth, async (req, res) => {
+app.delete('/api/admin/styles/:id', async (req, res) => {
     try {
         const style = await Style.findById(req.params.id);
         if (!style) {
@@ -1070,7 +1158,7 @@ app.get('/api/styles', async (req, res) => {
     }
 });
 
-app.post('/api/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
+app.post('/api/styles', upload.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1114,7 +1202,7 @@ app.post('/api/styles', authMiddleware, adminAuth, uploadFiles.single('image'), 
     }
 });
 
-app.put('/api/styles/:id', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
+app.put('/api/styles/:id', upload.single('image'), async (req, res) => {
     try {
         const { name, prompt } = req.body;
         const updateData = { name, prompt };
@@ -1153,7 +1241,7 @@ app.put('/api/styles/:id', authMiddleware, adminAuth, uploadFiles.single('image'
     }
 });
 
-app.delete('/api/styles/:id', authMiddleware, adminAuth, async (req, res) => {
+app.delete('/api/styles/:id', async (req, res) => {
     try {
         const style = await Style.findById(req.params.id);
         if (!style) {
@@ -1177,166 +1265,42 @@ app.delete('/api/styles/:id', authMiddleware, adminAuth, async (req, res) => {
     }
 });
 
-// Admin route to manage styles
-app.get('/admin/styles', authMiddleware, adminAuth, (req, res) => {
-    res.sendFile(join(__dirname, 'public', 'admin-styles.html'));
-});
-
-// Get all styles with sorting
-app.get('/api/styles', async (req, res) => {
+// Get a single style by ID
+app.get('/api/styles/:id', async (req, res) => {
     try {
-        const { sortBy = 'order', sortOrder = 'asc' } = req.query;
-        
-        // Validate sort parameters
-        const validSortFields = ['name', 'order'];
-        const validSortOrders = ['asc', 'desc'];
-        
-        if (!validSortFields.includes(sortBy) || !validSortOrders.includes(sortOrder)) {
-            return res.status(400).json({ error: 'Invalid sort parameters' });
+        const style = await Style.findById(req.params.id);
+        if (!style) {
+            return res.status(404).json({ error: 'Style not found' });
         }
-
-        // Create sort object
-        const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
-        
-        const styles = await Style.find().sort(sort);
-        res.json(styles);
+        res.json(style);
     } catch (error) {
-        console.error('Error fetching styles:', error);
+        console.error('Error fetching style:', error);
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/api/styles', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
-    try {
-        console.log('Received style creation request');
-        const { name, prompt } = req.body;
-        
-        if (!name || !prompt) {
-            console.log('Missing required fields:', { name: !!name, prompt: !!prompt });
-            return res.status(400).json({ error: 'Name and prompt are required' });
-        }
-
-        if (!req.file) {
-            console.log('No image file provided');
-            return res.status(400).json({ error: 'Image file is required' });
-        }
-
-        try {
-            console.log('Saving image locally...');
-            const imageUrl = await localStyleStorage.saveImage(
-                req.file.buffer,
-                req.file.originalname
-            );
-            console.log('Image saved successfully:', imageUrl);
-
-            console.log('Creating style in database...');
-            const style = new Style({
-                name,
-                prompt,
-                imageUrl,
-                order: await Style.countDocuments()
-            });
-
-            await style.save();
-            console.log('Style saved successfully:', style._id);
-            res.status(201).json(style);
-        } catch (saveError) {
-            console.error('Error during style creation:', saveError);
-            res.status(500).json({ error: 'Save failed', details: saveError.message });
-        }
-    } catch (error) {
-        console.error('Error adding style:', error);
-        res.status(500).json({ error: 'Server error', details: error.message });
-    }
-});
-
-app.put('/api/styles/:id', authMiddleware, adminAuth, uploadFiles.single('image'), async (req, res) => {
-    try {
-        const { name, prompt } = req.body;
-        const updateData = { name, prompt };
-
-        const style = await Style.findById(req.params.id);
-        if (!style) {
-            return res.status(404).json({ error: 'Style not found' });
-        }
-
-        // If new image is uploaded
-        if (req.file) {
-            // Delete old image if it exists
-            if (style.imageUrl) {
-                try {
-                    await localStyleStorage.deleteImage(style.imageUrl);
-                } catch (error) {
-                    console.error('Error deleting old image:', error);
-                }
-            }
-
-            // Save new image
-            updateData.imageUrl = await localStyleStorage.saveImage(
-                req.file.buffer,
-                req.file.originalname
-            );
-        }
-
-        // Update style
-        Object.assign(style, updateData);
-        await style.save();
-        
-        res.json(style);
-    } catch (error) {
-        console.error('Error updating style:', error);
-        res.status(500).json({ error: 'Failed to update style', details: error.message });
-    }
-});
-
-app.delete('/api/styles/:id', authMiddleware, adminAuth, async (req, res) => {
-    try {
-        const style = await Style.findById(req.params.id);
-        if (!style) {
-            return res.status(404).json({ error: 'Style not found' });
-        }
-
-        // Delete image file if it exists
-        if (style.imageUrl) {
-            try {
-                await localStyleStorage.deleteImage(style.imageUrl);
-            } catch (error) {
-                console.error('Error deleting image:', error);
-            }
-        }
-
-        await style.deleteOne();
-        res.json({ message: 'Style deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting style:', error);
-        res.status(500).json({ error: 'Failed to delete style' });
-    }
-});
-
-// Update style order
-app.put('/api/styles/order', authMiddleware, adminAuth, async (req, res) => {
+app.put('/api/styles/order', async (req, res) => {
     try {
         const { styles } = req.body;
         
         if (!Array.isArray(styles)) {
-            return res.status(400).json({ error: 'Invalid request format' });
+            return res.status(400).json({ error: 'Invalid styles array' });
         }
 
         // Update each style's order
-        const updatePromises = styles.map(({ id, order }) => 
-            Style.findByIdAndUpdate(id, { order }, { new: true })
-        );
+        await Promise.all(styles.map(async ({ id, order }) => {
+            await Style.findByIdAndUpdate(id, { order });
+        }));
 
-        await Promise.all(updatePromises);
         res.json({ message: 'Order updated successfully' });
     } catch (error) {
-        console.error('Error updating style order:', error);
+        console.error('Error updating order:', error);
         res.status(500).json({ error: 'Failed to update order' });
     }
 });
 
-// Get settings
-app.get('/api/settings', async (req, res) => {
+// Get settings endpoint
+app.get('/api/settings', auth, async (req, res) => {
     try {
         let settings = await Settings.findOne();
         if (!settings) {
@@ -1346,12 +1310,12 @@ app.get('/api/settings', async (req, res) => {
         res.json(settings);
     } catch (error) {
         console.error('Error getting settings:', error);
-        res.status(500).json({ error: 'Failed to get settings' });
+        res.status(500).json({ error: 'Server error' });
     }
 });
 
 // Update settings
-app.put('/api/settings', authMiddleware, adminAuth, uploadFiles.single('logo'), async (req, res) => {
+app.put('/api/settings', async (req, res) => {
     try {
         console.log('Updating settings:', req.body);
         
@@ -1407,7 +1371,7 @@ app.put('/api/settings', authMiddleware, adminAuth, uploadFiles.single('logo'), 
 });
 
 // Add generation to collection
-app.post('/api/collections/:collectionId/generations', authMiddleware, async (req, res) => {
+app.post('/api/collections/:collectionId/generations', async (req, res) => {
     try {
         const { collectionId } = req.params;
         const { imageUrl, prompt } = req.body;
@@ -1415,7 +1379,7 @@ app.post('/api/collections/:collectionId/generations', authMiddleware, async (re
         // Find the collection
         const collection = await Collection.findOne({
             _id: collectionId,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!collection) {
@@ -1424,7 +1388,7 @@ app.post('/api/collections/:collectionId/generations', authMiddleware, async (re
 
         // Create a new generation
         const generation = new Generation({
-            userId: req.user._id,
+            userId: req.userId,
             prompt: prompt,
             imageUrl: imageUrl,
             status: 'completed'
@@ -1445,7 +1409,7 @@ app.post('/api/collections/:collectionId/generations', authMiddleware, async (re
 });
 
 // Image download endpoint
-app.get('/api/download', authMiddleware, async (req, res) => {
+app.get('/api/download', async (req, res) => {
     try {
         const { imageUrl } = req.query;
         
@@ -1456,7 +1420,7 @@ app.get('/api/download', authMiddleware, async (req, res) => {
         // Validate the image URL belongs to the user
         const generation = await Generation.findOne({
             imageUrl: imageUrl,
-            userId: req.user._id
+            userId: req.userId
         });
 
         if (!generation) {
@@ -1505,9 +1469,9 @@ app.get('/api/download', authMiddleware, async (req, res) => {
 });
 
 // Get all collections for the authenticated user
-app.get('/api/collections', authMiddleware, async (req, res) => {
+app.get('/api/collections', async (req, res) => {
     try {
-        const collections = await Collection.find({ userId: req.user._id })
+        const collections = await Collection.find({ userId: req.userId })
             .select('title stats')
             .lean();
         
@@ -1527,13 +1491,54 @@ app.get('/api/collections', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/collections/:collectionId/generations', async (req, res) => {
+    try {
+        const collection = await Collection.findOne({
+            _id: req.params.collectionId,
+            userId: req.userId
+        }).populate('generations');
+
+        if (!collection) {
+            return res.status(404).json({ error: 'Collection not found' });
+        }
+
+        // Add isUpscaled flag based on filename
+        const enhancedGenerations = collection.generations.map(gen => {
+            const doc = gen.toObject();
+            doc.isUpscaled = doc.imageUrl.toLowerCase().endsWith('output.png');
+            return doc;
+        });
+
+        res.json(enhancedGenerations);
+    } catch (error) {
+        console.error('Error fetching collection generations:', error);
+        res.status(500).json({ error: 'Failed to fetch generations' });
+    }
+});
+
 // Mount routes
-app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/credits', creditsRoutes);
 app.use('/api/ipn', upload.none(), ipnRouter);
 app.use('/api/variables', variablesRouter);
+
+// Catch-all route to handle client-side routing
+app.get('*', (req, res) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    
+    // Check authentication for protected routes
+    const token = req.cookies.token;
+    if (!token && (req.path === '/' || req.path.startsWith('/collection/') || req.path === '/collections')) {
+        return res.redirect('/login');
+    }
+    
+    // Serve index.html for all other routes
+    res.sendFile(join(__dirname, 'public', 'index.html'));
+});
 
 async function startServer(initialPort = 3005) {
     try {

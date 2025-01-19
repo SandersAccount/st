@@ -131,39 +131,55 @@
         .modal {
             display: none;
             position: fixed;
-            top: 0;
+            z-index: 9999;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
+            background-color: rgba(0,0,0,0.7);
+            overflow-y: auto;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
         }
 
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .modal.show {
+            opacity: 1;
         }
 
         .modal-content {
             background: #1a1a1a;
-            padding: 2rem;
-            border-radius: 8px;
+            margin: 5vh auto;
+            padding: 0;
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10000;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
         }
 
         .modal-header {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
+            background: #2a2a2a;
+            border-radius: 8px 8px 0 0;
         }
 
         .modal-title {
-            font-size: 1.25rem;
-            color: #fff;
             margin: 0;
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 500;
         }
 
         .close-modal {
@@ -172,14 +188,57 @@
             color: #fff;
             font-size: 1.5rem;
             cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .close-modal:hover {
+            opacity: 1;
+        }
+
+        #editStyleForm {
+            padding: 1.5rem;
+            background: transparent;
+            margin: 0;
+        }
+
+        #editStyleForm .form-group:last-child {
+            margin-bottom: 1rem;
+        }
+
+        #editStyleForm .btn-primary {
+            width: 100%;
+            padding: 0.75rem;
+            background: #4CAF50;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #editStyleForm .btn-primary:hover {
+            background: #45a049;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Hide any duplicate forms that might exist */
+        #editStyleForm ~ #editStyleForm {
+            display: none !important;
         }
 
         .preview-image {
             width: 100%;
-            max-height: 200px;
-            object-fit: contain;
-            margin-bottom: 1rem;
-            background: #2a2a2a;
+            max-width: 300px;
+            height: auto;
+            margin-top: 1rem;
             border-radius: 4px;
         }
 
@@ -328,7 +387,7 @@
             <button id="saveOrderButton" onclick="saveOrder()" class="btn-primary" style="display: none;">Save Order</button>
         </div>
 
-        <form id="addStyleForm" class="add-style-form" enctype="multipart/form-data" onsubmit="addStyle(event)">
+        <form id="addStyleForm" class="add-style-form">
             <div class="form-group">
                 <label for="styleName">Style Name</label>
                 <input type="text" id="styleName" name="name" required>
@@ -345,7 +404,7 @@
                 </label>
                 <input type="file" id="styleImage" name="image" accept="image/*" required>
                 <span class="file-name"></span>
-                <img id="imagePreview" src="" alt="Image preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
+                <img id="imagePreview" src="" alt="Image preview" style="display: none; width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
             </div>
             
             <button type="submit" class="btn-primary">Add Style</button>
@@ -372,10 +431,10 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">Edit Style</h2>
-                <button class="close-modal" onclick="closeEditModal()">&times;</button>
+                <button type="button" class="close-modal" onclick="closeEditModal()">&times;</button>
             </div>
-            <form id="editStyleForm" enctype="multipart/form-data" onsubmit="updateStyle(event)">
-                <input type="hidden" id="editStyleId">
+            <form id="editStyleForm">
+                <input type="hidden" id="editStyleId" name="id">
                 
                 <div class="form-group">
                     <label for="editStyleName">Style Name</label>
@@ -393,7 +452,7 @@
                     </label>
                     <input type="file" id="editStyleImage" name="image" accept="image/*">
                     <span class="file-name"></span>
-                    <img id="editImagePreview" src="" alt="Image preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
+                    <img id="editImagePreview" src="" alt="Image preview" style="display: none; width: 100px; height: 100px; object-fit: cover; border-radius: 4px; margin-top: 1rem;">
                 </div>
                 
                 <button type="submit" class="btn-primary">Save Changes</button>
@@ -416,19 +475,208 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById(previewId).src = e.target.result;
+                    const preview = document.getElementById(previewId);
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
                 };
                 reader.readAsDataURL(file);
                 
                 // Update file name display
                 const fileNameSpan = event.target.nextElementSibling;
-                fileNameSpan.textContent = file.name;
+                if (fileNameSpan) {
+                    fileNameSpan.textContent = file.name;
+                }
             }
         }
 
-        // Add event listeners for file inputs
-        document.getElementById('styleImage').addEventListener('change', (e) => handleFileSelect(e, 'imagePreview'));
-        document.getElementById('editStyleImage').addEventListener('change', (e) => handleFileSelect(e, 'editImagePreview'));
+        // Function to update style
+        window.updateStyle = async function(event) {
+            event.preventDefault();
+            
+            try {
+                const form = event.target;
+                const styleId = form.querySelector('#editStyleId').value;
+                const formData = new FormData(form);
+                
+                // Only include the image if a new one was selected
+                const imageInput = form.querySelector('#editStyleImage');
+                if (!imageInput.files[0]) {
+                    formData.delete('image');
+                }
+                
+                const response = await fetch(`/api/styles/${styleId}`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to update style');
+                }
+                
+                // Close modal and reload styles
+                closeEditModal();
+                loadStyles();
+                
+                // Show success message
+                alert('Style updated successfully!');
+            } catch (error) {
+                console.error('Error updating style:', error);
+                alert(error.message || 'Failed to update style');
+            }
+        };
+
+        // Initialize event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Add form event listeners
+            const addForm = document.getElementById('addStyleForm');
+            const editForm = document.getElementById('editStyleForm');
+            const addStyleImage = document.getElementById('styleImage');
+            const editStyleImage = document.getElementById('editStyleImage');
+
+            if (addForm) addForm.addEventListener('submit', window.addStyle);
+            if (editForm) editForm.addEventListener('submit', window.updateStyle);
+            
+            // Add file input listeners
+            if (addStyleImage) {
+                addStyleImage.addEventListener('change', (e) => handleFileSelect(e, 'imagePreview'));
+            }
+            if (editStyleImage) {
+                editStyleImage.addEventListener('change', (e) => handleFileSelect(e, 'editImagePreview'));
+            }
+
+            // Load initial data
+            loadStyles();
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        });
+
+        // Function to add a new style
+        window.addStyle = async function(event) {
+            event.preventDefault();
+            
+            try {
+                const formData = new FormData(event.target);
+                
+                const response = await fetch('/api/styles', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Save failed');
+                }
+                
+                // Reset form and reload styles
+                event.target.reset();
+                document.getElementById('imagePreview').style.display = 'none';
+                document.querySelector('#addStyleForm .file-name').textContent = '';
+                loadStyles();
+            } catch (error) {
+                console.error('Error adding style:', error);
+                alert(error.message || 'Failed to add style');
+            }
+        };
+
+        // Function to edit a style
+        window.editStyle = async function(styleId) {
+            try {
+                const response = await fetch(`/api/styles/${styleId}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to fetch style details');
+                }
+
+                const style = await response.json();
+                
+                // Populate the edit modal with style data
+                const editForm = document.getElementById('editStyleForm');
+                editForm.querySelector('#editStyleId').value = style._id;
+                editForm.querySelector('#editStyleName').value = style.name || '';
+                editForm.querySelector('#editStylePrompt').value = style.prompt || '';
+                
+                // Handle image preview
+                const imagePreview = editForm.querySelector('#editImagePreview');
+                if (style.imageUrl) {
+                    imagePreview.src = style.imageUrl;
+                    imagePreview.style.display = 'block';
+                } else {
+                    imagePreview.style.display = 'none';
+                }
+                
+                // Show the edit modal with animation
+                const modal = document.getElementById('editModal');
+                modal.style.display = 'block';
+                // Trigger reflow
+                modal.offsetHeight;
+                modal.classList.add('show');
+            } catch (error) {
+                console.error('Error loading style details:', error);
+                alert('Failed to load style details: ' + error.message);
+            }
+        };
+
+        // Function to close the edit modal
+        window.closeEditModal = function() {
+            const modal = document.getElementById('editModal');
+            const editForm = document.getElementById('editStyleForm');
+            
+            // Start fade out animation
+            modal.classList.remove('show');
+            
+            // Wait for animation to complete
+            setTimeout(() => {
+                modal.style.display = 'none';
+                // Reset the form
+                editForm.reset();
+                
+                // Clear image preview
+                const imagePreview = editForm.querySelector('#editImagePreview');
+                imagePreview.style.display = 'none';
+                imagePreview.src = '';
+                
+                // Clear file name
+                const fileNameSpan = editForm.querySelector('.file-name');
+                if (fileNameSpan) {
+                    fileNameSpan.textContent = '';
+                }
+            }, 300);
+        };
+
+        // Function to delete style
+        window.deleteStyle = async function(styleId) {
+            if (!confirm('Are you sure you want to delete this style?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/styles/${styleId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete style');
+                }
+                
+                loadStyles();
+            } catch (error) {
+                console.error('Error deleting style:', error);
+                alert('Failed to delete style');
+            }
+        };
 
         // Function to move style up or down
         window.moveStyle = async function(styleId, direction) {
@@ -480,53 +728,52 @@
             }
         };
 
-        // Function to add a new style
-        async function addStyle(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            
-            try {
-                const response = await fetch('/api/styles', {
-                    method: 'POST',
-                    credentials: 'include',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Server error response:', errorData);
-                    throw new Error(errorData.details || errorData.error || 'Failed to add style');
-                }
-
-                await loadStyles();
-                event.target.reset();
-                document.getElementById('imagePreview').src = '';
-                document.querySelector('#styleImage').nextElementSibling.textContent = '';
-            } catch (error) {
-                console.error('Error adding style:', error);
-                alert(`Error adding style: ${error.message}`);
-            }
-        }
-
         // Function to load styles
         async function loadStyles() {
             try {
-                const response = await fetch(`/api/styles?sortBy=${currentSort.field}&sortOrder=${currentSort.order}`, {
+                const response = await fetch('/api/styles', {
                     credentials: 'include'
                 });
-                const styles = await response.json();
                 
-                const tbody = document.querySelector('.styles-table tbody');
-                tbody.innerHTML = styles.map((style, index) => `
-                    <tr data-style-id="${style._id}">
+                if (!response.ok) {
+                    throw new Error('Failed to load styles');
+                }
+
+                const styles = await response.json();
+                const tbody = document.getElementById('stylesTableBody');
+                tbody.innerHTML = '';
+
+                if (styles.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="empty-state">No styles found. Add your first style above!</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                styles.sort((a, b) => {
+                    if (currentSort.field === 'order') {
+                        return currentSort.order === 'asc' ? a.order - b.order : b.order - a.order;
+                    }
+                    const aVal = a[currentSort.field] || '';
+                    const bVal = b[currentSort.field] || '';
+                    return currentSort.order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                });
+
+                styles.forEach((style, index) => {
+                    const tr = document.createElement('tr');
+                    tr.dataset.styleId = style._id;
+                    
+                    tr.innerHTML = `
                         <td>
-                            <img src="${style.imageUrl}" alt="${style.name}" style="width: 50px; height: 50px;">
+                            <img src="${style.imageUrl || '/images/placeholder.png'}" alt="${style.name}" class="style-image">
                         </td>
                         <td>${style.name}</td>
                         <td>${style.prompt}</td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn-edit" onclick="editStyle('${style._id}', '${style.name}', '${style.prompt}', '${style.imageUrl}')">
+                                <button class="btn-edit" onclick="editStyle('${style._id}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <button class="btn-delete" onclick="deleteStyle('${style._id}')">
@@ -537,26 +784,25 @@
                         <td>
                             <div class="reorder-buttons">
                                 <button class="btn-reorder" onclick="moveStyle('${style._id}', 'up')" ${index === 0 ? 'disabled' : ''}>
-                                    <i class="fas fa-chevron-up"></i>
+                                    <i class="fas fa-arrow-up"></i>
                                 </button>
                                 <button class="btn-reorder" onclick="moveStyle('${style._id}', 'down')" ${index === styles.length - 1 ? 'disabled' : ''}>
-                                    <i class="fas fa-chevron-down"></i>
+                                    <i class="fas fa-arrow-down"></i>
                                 </button>
                             </div>
                         </td>
-                    </tr>
-                `).join('');
+                    `;
+                    
+                    tbody.appendChild(tr);
+                });
             } catch (error) {
                 console.error('Error loading styles:', error);
                 alert('Failed to load styles');
             }
         }
 
-        // Load styles on page load
-        loadStyles();
-
-        // Add form submit handler
-        document.getElementById('addStyleForm').addEventListener('submit', addStyle);
+        // Make loadStyles function available globally
+        window.loadStyles = loadStyles;
 
         // Load settings
         async function loadSettings() {

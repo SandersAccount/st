@@ -62,70 +62,80 @@
             justify-content: center;
             gap: 1rem;
             background: none;
+            position: relative;
+            aspect-ratio: 1;
         }
 
         .collection-card.create-new:hover {
             border-color: #666;
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .collection-card.create-new i {
             font-size: 2rem;
             color: #666;
+            transition: color 0.2s;
+        }
+
+        .collection-card.create-new:hover i {
+            color: #999;
         }
 
         .collection-card.create-new span {
             color: #666;
             font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .collection-card.create-new:hover span {
+            color: #999;
+        }
+
+        /* Center plus icon absolutely */
+        .create-new-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: center;
         }
 
         .collection-preview {
             width: 100%;
             height: 100%;
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-            gap: 1px;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 2px;
             background: #1a1a1a;
-        }
-
-        .collection-preview img {
-            transition: transform 0.2s ease;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            padding: 2px;
         }
 
         .preview-image {
+            position: relative;
             width: 100%;
             height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #1a1a1a;
-            position: relative;
             overflow: hidden;
+            background: #272727;
+        }
+
+        .preview-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.2s ease;
         }
 
         .preview-image.empty {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
+            background: #272727;
         }
 
-        .preview-image.loading::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 0.3; }
-            100% { opacity: 0.5; }
+        .collection-card:hover .preview-image img {
+            transform: scale(1.05);
         }
 
         .collection-info {
@@ -242,11 +252,9 @@
         
         <div class="collections-grid">
             <div class="collection-card create-new">
-                <div class="collection-preview">
+                <div class="create-new-icon">
                     <i class="fas fa-plus"></i>
-                </div>
-                <div class="collection-info">
-                    <h3 class="collection-name">Create New Collection</h3>
+                    <span>Create New Collection</span>
                 </div>
             </div>
             <!-- Collections will be loaded here -->
@@ -385,6 +393,16 @@
             }, 500);
         });
 
+        // Add event listener for upscale events
+        document.addEventListener('imageUpscaled', (e) => {
+            const { generationId, newImageUrl } = e.detail;
+            const card = document.querySelector(`generation-card[generation-id="${generationId}"]`);
+            if (card) {
+                card.setAttribute('image-url', newImageUrl);
+                card.setAttribute('is-upscaled', 'true');
+            }
+        });
+
         // Load collections and recent generations
         async function loadContent() {
             try {
@@ -445,15 +463,25 @@
                 const generationsGrid = document.querySelector('.generations-grid');
                 generationsGrid.innerHTML = ''; // Clear existing generations
                 
-                generations.reverse().forEach(generation => {
+                function createGenerationCard(generation) {
                     console.log('Creating card for generation:', generation);
                     const card = document.createElement('generation-card');
                     card.setAttribute('image-url', generation.imageUrl);
-                    card.setAttribute('prompt', generation.prompt || '');
+                    card.setAttribute('prompt', generation.prompt);
+                    card.setAttribute('generation-id', generation._id);
+                    card.setAttribute('is-upscaled', generation.isUpscaled || false);
                     console.log('Card attributes set:', {
-                        imageUrl: card.getAttribute('image-url'),
-                        prompt: card.getAttribute('prompt')
+                        imageUrl: generation.imageUrl,
+                        prompt: generation.prompt,
+                        isUpscaled: generation.isUpscaled,
+                        id: generation._id
                     });
+                    return card;
+                }
+                
+                generations.reverse().forEach(generation => {
+                    console.log('Creating card for generation:', generation);
+                    const card = createGenerationCard(generation);
                     generationsGrid.appendChild(card);
                 });
                 

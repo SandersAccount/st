@@ -132,6 +132,24 @@ router.post('/login', [
     }
 });
 
+// Get current user
+router.get('/me', auth, async (req, res) => {
+    try {
+        // User is already attached to req by auth middleware
+        res.json({ 
+            user: {
+                id: req.user._id,
+                email: req.user.email,
+                name: req.user.name,
+                credits: req.user.credits
+            }
+        });
+    } catch (error) {
+        console.error('Error getting user data:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // Get current user info (both /me and /user for compatibility)
 router.get('/me', auth, async (req, res) => {
     try {

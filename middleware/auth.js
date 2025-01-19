@@ -25,7 +25,17 @@ const auth = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Auth middleware error:', error.message);
-        res.status(401).json({ error: 'Please authenticate' });
+        
+        // Check if the request is for an HTML page
+        const isHtmlRequest = req.headers.accept && req.headers.accept.includes('text/html');
+        
+        if (isHtmlRequest) {
+            // Redirect to login page for HTML requests
+            return res.redirect('/auth');
+        } else {
+            // Return JSON error for API requests
+            return res.status(401).json({ error: 'Please authenticate' });
+        }
     }
 };
 

@@ -1,9 +1,25 @@
 export async function createTopbar() {
+    let defaultSettings = {
+        appName: 'Sticker Generator',
+        useLogoInstead: false
+    };
+
     try {
-        // Get settings
-        const settingsResponse = await fetch('/api/settings');
-        const settings = await settingsResponse.json();
-        console.log('Loaded settings:', settings);
+        // Get settings first
+        let settings = defaultSettings;
+        try {
+            const settingsResponse = await fetch('/api/settings', {
+                credentials: 'include'
+            });
+            if (settingsResponse.ok) {
+                settings = await settingsResponse.json();
+                console.log('Loaded settings:', settings);
+            } else {
+                console.warn('Failed to load settings, using defaults');
+            }
+        } catch (error) {
+            console.warn('Error loading settings, using defaults:', error);
+        }
 
         const topbar = document.createElement('div');
         topbar.className = 'topbar';
@@ -23,13 +39,13 @@ export async function createTopbar() {
             console.log('Using logo:', settings.logoUrl);
             const logo = document.createElement('img');
             logo.src = settings.logoUrl;
-            logo.alt = settings.appName || 'Sticker Generator';
+            logo.alt = settings.appName || defaultSettings.appName;
             logo.style.height = '47px';
             logo.style.width = 'auto';
             appTitle.appendChild(logo);
         } else {
             console.log('Using text:', settings.appName);
-            appTitle.textContent = settings.appName || 'Sticker Generator';
+            appTitle.textContent = settings.appName || defaultSettings.appName;
         }
         
         leftSection.appendChild(appTitle);
@@ -47,15 +63,11 @@ export async function createTopbar() {
             const link = document.createElement('a');
             link.href = item.href;
             link.className = 'nav-link';
-            if (window.location.pathname === item.href) {
+            if (window.location.pathname === item.href || 
+                (item.href === '/collections' && window.location.pathname.startsWith('/collection/'))) {
                 link.classList.add('active');
             }
             link.textContent = item.text;
-            // Add click handler to handle navigation
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.location.href = item.href;
-            });
             centerSection.appendChild(link);
         });
 
@@ -68,143 +80,159 @@ export async function createTopbar() {
                 credentials: 'include'
             });
 
-            const userData = await response.json();
-
-            if (userData) {
-                // Credits indicator
-                const creditsIndicator = document.createElement('div');
-                creditsIndicator.className = 'credits-indicator';
-
-                const creditsIcon = document.createElement('i');
-                creditsIcon.className = 'fas fa-coins';
-
-                const creditsCount = document.createElement('span');
-                creditsCount.textContent = userData.credits || '0';
-                creditsCount.id = 'topbarCredits';
-
-                creditsIndicator.appendChild(creditsIcon);
-                creditsIndicator.appendChild(creditsCount);
-
-                // Upgrade button
-                const upgradeButton = document.createElement('button');
-                upgradeButton.className = 'btn-upgrade';
-                upgradeButton.textContent = 'Buy Credits';
-                upgradeButton.addEventListener('click', () => {
-                    window.location.href = '/profile?tab=subscription';
-                });
-
-                // User menu button
-                const userButton = document.createElement('button');
-                userButton.className = 'user-menu-button';
-
-                const avatar = document.createElement('div');
-                avatar.className = 'user-avatar';
-                avatar.textContent = userData.name ? userData.name[0].toUpperCase() : 'U';
-
-                userButton.appendChild(avatar);
-
-                // Add elements to right section
-                rightSection.appendChild(creditsIndicator);
-                rightSection.appendChild(upgradeButton);
-                rightSection.appendChild(userButton);
-
-                // User dropdown
-                const dropdown = document.createElement('div');
-                dropdown.className = 'user-dropdown';
-                dropdown.style.display = 'none';
-                dropdown.style.position = 'absolute';
-                dropdown.style.top = '100%';
-                dropdown.style.right = '0';
-                dropdown.style.marginTop = '0.5rem';
-                dropdown.style.zIndex = '1000';
-
-                // Set credits info
-                dropdown.setAttribute('data-credits', `${userData.credits || 0} credits left`);
-
-                // Add menu items
-                const menuItems = [
-                    { text: 'Personal Info', href: '/profile' },
-                    { text: 'Credits', href: '/profile?tab=subscription' },
-                    { text: 'Log Out', href: '#', action: handleLogout }
-                ];
-
-                menuItems.forEach(item => {
-                    const menuItem = document.createElement('a');
-                    menuItem.href = item.href;
-                    menuItem.textContent = item.text;
-                    if (item.action) {
-                        menuItem.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            item.action();
-                        });
-                    }
-                    dropdown.appendChild(menuItem);
-                });
-
-                // Logout handler function
-                function handleLogout() {
-                    fetch('/api/auth/logout', {
-                        method: 'POST',
-                        credentials: 'include'
-                    })
-                    .then(response => response.json())
-                    .then(() => {
-                        window.location.href = '/login';
-                    })
-                    .catch(error => {
-                        console.error('Logout error:', error);
-                        alert('Failed to logout. Please try again.');
-                    });
-                }
-
-                // Toggle dropdown
-                userButton.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-                });
-
-                document.addEventListener('click', () => {
-                    dropdown.style.display = 'none';
-                });
-
-                rightSection.appendChild(dropdown);
-            } else {
+            if (!response.ok) {
+                // If auth fails, create minimal topbar with login button
                 const loginButton = document.createElement('a');
                 loginButton.href = '/login';
+                loginButton.className = 'btn-login';
                 loginButton.textContent = 'Login';
-                loginButton.style.color = '#ffffff';
-                loginButton.style.textDecoration = 'none';
                 rightSection.appendChild(loginButton);
-            }
+            } else {
+                const userData = await response.json();
+                const user = userData.user;
 
-            // Listen for credit updates
-            window.addEventListener('creditsUpdated', (event) => {
-                if (event.detail && typeof event.detail.credits === 'number') {
-                    const creditsElement = document.getElementById('topbarCredits');
-                    if (creditsElement) {
-                        creditsElement.textContent = event.detail.credits;
-                    }
+                if (user) {
+                    // Credits indicator
+                    const creditsIndicator = document.createElement('div');
+                    creditsIndicator.className = 'credits-indicator';
+
+                    const creditsIcon = document.createElement('i');
+                    creditsIcon.className = 'fas fa-coins';
+
+                    const creditsCount = document.createElement('span');
+                    creditsCount.textContent = user.credits || '0';
+                    creditsCount.id = 'topbarCredits';
+
+                    creditsIndicator.appendChild(creditsIcon);
+                    creditsIndicator.appendChild(creditsCount);
+
+                    // Upgrade button
+                    const upgradeButton = document.createElement('button');
+                    upgradeButton.className = 'btn-upgrade';
+                    upgradeButton.textContent = 'Buy Credits';
+                    upgradeButton.addEventListener('click', () => {
+                        window.location.href = '/profile?tab=credits';
+                    });
+
+                    // User menu button
+                    const userButton = document.createElement('button');
+                    userButton.className = 'user-menu-button';
+
+                    const avatar = document.createElement('div');
+                    avatar.className = 'user-avatar';
+                    avatar.textContent = user.name ? user.name[0].toUpperCase() : 'U';
+
+                    userButton.appendChild(avatar);
+
+                    // Create dropdown menu
+                    const dropdown = document.createElement('div');
+                    dropdown.className = 'user-dropdown';
+                    dropdown.style.display = 'none';
+                    dropdown.innerHTML = `
+                        <div class="user-dropdown-content">
+                            <div class="menu-header">
+                                <div class="user-info">
+                                    <div class="user-avatar">${user.name ? user.name[0].toUpperCase() : 'U'}</div>
+                                    <div class="user-details">
+                                        <div class="user-name">${user.name || 'User'}</div>
+                                        <div class="user-email">${user.email}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="menu-items">
+                                <a href="/profile" class="menu-item">
+                                    <i class="fas fa-user"></i>
+                                    Profile
+                                </a>
+                                <a href="/profile?tab=credits" class="menu-item">
+                                    <i class="fas fa-coins"></i>
+                                    Credits
+                                </a>
+                                <div class="menu-divider"></div>
+                                <a href="#" class="menu-item" onclick="handleLogout(event)">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    Log Out
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                    // Add click handler for user menu
+                    userButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                    });
+
+                    // Close dropdown when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (!dropdown.contains(e.target) && !userButton.contains(e.target)) {
+                            dropdown.style.display = 'none';
+                        }
+                    });
+
+                    // Add logout handler
+                    window.handleLogout = async (event) => {
+                        event.preventDefault();
+                        try {
+                            const response = await fetch('/api/auth/logout', {
+                                method: 'POST',
+                                credentials: 'include'
+                            });
+                            if (response.ok) {
+                                window.location.href = '/auth';
+                            }
+                        } catch (error) {
+                            console.error('Logout failed:', error);
+                        }
+                    };
+
+                    const userMenuContainer = document.createElement('div');
+                    userMenuContainer.className = 'user-menu-container';
+                    userMenuContainer.style.position = 'relative';
+                    userMenuContainer.appendChild(userButton);
+                    userMenuContainer.appendChild(dropdown);
+
+                    // Add components to right section
+                    rightSection.appendChild(creditsIndicator);
+                    rightSection.appendChild(upgradeButton);
+                    rightSection.appendChild(userMenuContainer);
                 }
-            });
-
+            }
         } catch (error) {
             console.error('Error loading user data:', error);
+            // Create minimal topbar with login button
+            const loginButton = document.createElement('a');
+            loginButton.href = '/login';
+            loginButton.className = 'btn-login';
+            loginButton.textContent = 'Login';
+            rightSection.appendChild(loginButton);
         }
 
-        // Assemble the topbar
+        // Assemble topbar
         content.appendChild(leftSection);
         content.appendChild(centerSection);
         content.appendChild(rightSection);
         topbar.appendChild(content);
 
-        // Insert into DOM
-        const topbarElement = document.getElementById('topbar');
-        if (topbarElement) {
-            topbarElement.replaceChildren(topbar);
-        }
-
+        // Add topbar to document
+        document.body.insertBefore(topbar, document.body.firstChild);
         return topbar;
     } catch (error) {
         console.error('Error creating topbar:', error);
+        // Create minimal topbar on error
+        const minimalTopbar = document.createElement('div');
+        minimalTopbar.className = 'topbar';
+        minimalTopbar.innerHTML = `
+            <div class="topbar-content">
+                <div class="topbar-left">
+                    <a href="/" class="logo">Sticker Generator</a>
+                </div>
+                <div class="topbar-right">
+                    <a href="/login" class="btn-login">Login</a>
+                </div>
+            </div>
+        `;
+        document.body.insertBefore(minimalTopbar, document.body.firstChild);
+        return minimalTopbar;
     }
 }

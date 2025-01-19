@@ -6,16 +6,34 @@ export class GenerationCard extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this._imageUrl = '';
         this._prompt = '';
-        this.render();
+        this._isUpscaled = false;
+        this._id = '';
+        this.connectedCallback();
     }
 
     static get observedAttributes() {
-        return ['image-url', 'prompt'];
+        return ['image-url', 'prompt', 'is-upscaled', 'generation-id'];
     }
 
-    connectedCallback() {
-        this.setupEventListeners();
-        this.checkAndRemoveDuplicate();
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (oldValue === newValue) return;
+        
+        switch (name) {
+            case 'image-url':
+                this._imageUrl = newValue;
+                break;
+            case 'prompt':
+                this._prompt = newValue;
+                break;
+            case 'is-upscaled':
+                this._isUpscaled = newValue === 'true';
+                break;
+            case 'generation-id':
+                this._id = newValue;
+                break;
+        }
+        
+        this.render();
     }
 
     get imageUrl() {
@@ -23,10 +41,10 @@ export class GenerationCard extends HTMLElement {
     }
 
     set imageUrl(value) {
-        this._imageUrl = value;
-        this.setAttribute('image-url', value);
-        this.render();
-        this.checkAndRemoveDuplicate();
+        if (value !== this._imageUrl) {
+            this._imageUrl = value;
+            this.setAttribute('image-url', value);
+        }
     }
 
     get prompt() {
@@ -36,16 +54,24 @@ export class GenerationCard extends HTMLElement {
     set prompt(value) {
         this._prompt = value;
         this.setAttribute('prompt', value);
-        this.render();
     }
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        if (oldValue !== newValue) {
-            if (name === 'image-url') this._imageUrl = newValue;
-            if (name === 'prompt') this._prompt = newValue;
-            this.render();
-            if (name === 'image-url') this.checkAndRemoveDuplicate();
-        }
+    get isUpscaled() {
+        return this._isUpscaled;
+    }
+
+    set isUpscaled(value) {
+        this._isUpscaled = value;
+        this.setAttribute('is-upscaled', value);
+    }
+
+    get id() {
+        return this._id;
+    }
+
+    set id(value) {
+        this._id = value;
+        this.setAttribute('generation-id', value);
     }
 
     checkAndRemoveDuplicate() {
@@ -76,180 +102,186 @@ export class GenerationCard extends HTMLElement {
     }
 
     render() {
-        this.shadowRoot.innerHTML = `
+        const upscaleButton = this._isUpscaled ? '' : `
+            <button class="menu-button" data-action="upscale" title="Upscale Image">
+                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
+                Upscale
+            </button>
+        `;
+
+        const hdBadge = this._isUpscaled ? `
+            <div class="hd-badge">
+                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
+                HD
+            </div>
+        ` : '';
+
+        const template = `
             <style>
-                .card {
+                :host {
+                    display: block;
                     position: relative;
                     width: 100%;
                     height: 100%;
-                    border-radius: 12px;
-                    overflow: hidden;
-                    background: #1a1a1a;
                 }
 
                 .image-container {
                     position: relative;
                     width: 100%;
                     height: 100%;
-                    cursor: pointer;
+                    overflow: hidden;
+                    border-radius: 8px;
                 }
 
-                .image-container img {
+                img.generation-image {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
-                    opacity: 0;
-                    transition: opacity 0.3s ease-out;
                 }
 
-                .image-options-dropdown {
+                .menu-overlay {
                     position: absolute;
-                    top: 8px;
-                    right: 8px;
+                    top: 0;
+                    right: 0;
+                    bottom: 0;
+                    padding: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    gap: 8px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                    background: linear-gradient(to left, rgba(0,0,0,0.5), transparent);
+                }
+
+                .image-container:hover .menu-overlay {
+                    opacity: 1;
+                }
+
+                .menu-button {
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 6px 12px;
+                    border: none;
+                    border-radius: 4px;
+                    background: rgba(255, 255, 255, 0.9);
+                    color: #333;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s;
+                    min-width: 100px;
+                    justify-content: flex-start;
+                }
+
+                .menu-button:hover {
+                    background: rgba(255, 255, 255, 1);
+                    transform: translateY(-1px);
+                }
+
+                .menu-button:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                    transform: none;
+                }
+
+                .menu-button img {
+                    width: 16px;
+                    height: 16px;
+                }
+
+                .menu-button[data-action="delete"]:hover {
+                    background: rgba(255, 100, 100, 0.9);
+                    color: white;
+                }
+
+                .menu-button[data-action="delete"]:hover img {
+                    filter: brightness(0) invert(1);
+                }
+
+                .hd-badge {
+                    position: absolute;
+                    top: 12px;
+                    left: 12px;
+                    background: rgba(255, 255, 255, 0.9);
+                    color: #333;
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: bold;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
                     z-index: 10;
                 }
 
-                .dropdown-button {
-                    background: rgba(0, 0, 0, 0.5);
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 4px 8px;
-                    cursor: pointer;
-                    font-size: 18px;
-                }
-
-                .dropdown-content {
-                    display: none;
-                    position: absolute;
-                    right: 0;
-                    top: 100%;
-                    background: #2a2a2a;
-                    border-radius: 8px;
-                    min-width: 160px;
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-                    z-index: 1000;
-                }
-
-                .dropdown-content.show {
-                    display: block;
-                }
-
-                .dropdown-content div {
-                    color: white;
-                    padding: 8px 16px;
-                    cursor: pointer;
-                    transition: background-color 0.2s;
-                }
-
-                .dropdown-content div:hover {
-                    background: rgba(255, 255, 255, 0.1);
-                }
-
-                .dropdown-content div[data-action="move-to-trash"] {
-                    color: #ff4444;
+                .hd-badge img {
+                    width: 14px;
+                    height: 14px;
                 }
             </style>
-            <div class="card" data-id="${this._imageUrl}">
-                <div class="image-container">
-                    <img src="${this.normalizeImageUrl(this._imageUrl)}" 
-                         alt="${this._prompt || 'Generated image'}" 
-                         loading="lazy"
-                         onload="this.style.opacity = 1"
-                         onerror="this.style.opacity = 0.5; this.style.background = '#2a2a2a';">
-                    <div class="image-options-dropdown">
-                        <button class="dropdown-button">⋮</button>
-                        <div class="dropdown-content">
-                            <div data-action="prompt">Show Prompt</div>
-                            <div data-action="add-to-collection">Add to Collection</div>
-                            <div data-action="download">Download</div>
-                            <div data-action="upscale">Upscale</div>
-                            <div data-action="move-to-trash">Move to Trash</div>
-                        </div>
-                    </div>
+            <div class="image-container">
+                <img class="generation-image" src="${this._imageUrl}" alt="${this._prompt || 'Generated image'}" />
+                ${hdBadge}
+                <div class="menu-overlay">
+                    ${upscaleButton}
+                    <button class="menu-button" data-action="collection" title="Add to Collection">
+                        <img src="/images/icons/ph-folder-simple-plus-light.svg" />
+                        Add
+                    </button>
+                    <button class="menu-button" data-action="download" title="Download Image">
+                        <img src="/images/icons/ph-download-simple-light.svg" />
+                        Save
+                    </button>
+                    <button class="menu-button" data-action="prompt" title="View Prompt">
+                        <img src="/images/icons/ph-file-code-light.svg" />
+                        Prompt
+                    </button>
+                    <button class="menu-button" data-action="delete" title="Delete Image">
+                        <img src="/images/icons/ph-trash-light.svg" />
+                        Delete
+                    </button>
                 </div>
             </div>
         `;
+
+        this.shadowRoot.innerHTML = template;
+        this.setupEventListeners();
     }
 
     setupEventListeners() {
-        const dropdownButton = this.shadowRoot.querySelector('.dropdown-button');
-        const dropdownContent = this.shadowRoot.querySelector('.dropdown-content');
-        const optionsContainer = this.shadowRoot.querySelector('.image-options-dropdown');
+        const container = this.shadowRoot.querySelector('.image-container');
+        if (!container) return;
 
-        if (!dropdownButton || !dropdownContent || !optionsContainer) {
-            console.error('Dropdown elements not found');
-            return;
-        }
-
-        // Toggle dropdown
-        dropdownButton.addEventListener('click', (e) => {
-            e.stopPropagation();
-            console.log('Dropdown button clicked'); // Debug log
-            dropdownContent.classList.toggle('show');
+        // Add click handlers for all menu buttons
+        container.querySelectorAll('.menu-button').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const action = button.getAttribute('data-action');
+                
+                switch (action) {
+                    case 'upscale':
+                        await this.handleUpscale();
+                        break;
+                    case 'collection':
+                        this.handleAddToCollection();
+                        break;
+                    case 'download':
+                        await this.handleDownload();
+                        break;
+                    case 'prompt':
+                        this.handleShowPrompt();
+                        break;
+                    case 'delete':
+                        this.handleDelete();
+                        break;
+                }
+            });
         });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!optionsContainer.contains(e.target)) {
-                dropdownContent.classList.remove('show');
-            }
-        });
-
-        // Handle dropdown options
-        dropdownContent.addEventListener('click', (e) => {
-            const action = e.target.getAttribute('data-action');
-            if (!action) return;
-
-            e.stopPropagation();
-            console.log('Option clicked:', action); // Debug log
-            dropdownContent.classList.remove('show');
-
-            switch (action) {
-                case 'prompt':
-                    this.handlePrompt();
-                    break;
-                case 'add-to-collection':
-                    this.handleAddToCollection();
-                    break;
-                case 'download':
-                    this.handleDownload();
-                    break;
-                case 'upscale':
-                    this.handleUpscale();
-                    break;
-                case 'move-to-trash':
-                    this.handleMoveToTrash();
-                    break;
-            }
-        });
-    }
-
-    handlePrompt() {
-        // Extract the base prompt without the style
-        const fullPrompt = this.getAttribute('prompt');
-        
-        // Don't show "No prompt available" in the toast
-        if (fullPrompt === 'No prompt available') {
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('No prompt available', 'info', 3000);
-            return;
-        }
-
-        const styleIndex = fullPrompt.toLowerCase().indexOf('style:');
-        const basePrompt = styleIndex !== -1 ? fullPrompt.substring(0, styleIndex).trim() : fullPrompt;
-        
-        // Create and show toast
-        const toast = document.createElement('toast-notification');
-        document.body.appendChild(toast);
-        toast.show(basePrompt, 'info', 3000, 'Prompt:'); // Show with "Prompt:" title
     }
 
     handleAddToCollection() {
-        console.log('Attempting to add to collection...'); // Debug log
-        
-        // Get or create the collection-modal component
+        // Get the collection modal
         let collectionModal = document.querySelector('collection-modal');
         if (!collectionModal) {
             collectionModal = document.createElement('collection-modal');
@@ -259,120 +291,153 @@ export class GenerationCard extends HTMLElement {
         // Set the image data
         collectionModal.setImageData({
             imageUrl: this._imageUrl,
-            prompt: this._prompt
+            prompt: this._prompt,
+            generationId: this._id
         });
 
         // Show the modal
         collectionModal.show();
     }
 
+    handleShowPrompt() {
+        const toast = document.createElement('toast-notification');
+        document.body.appendChild(toast);
+        toast.show(this._prompt || 'No prompt available', 'info', 5000);
+    }
+
     async handleDownload() {
         try {
-            if (!this._imageUrl) {
-                throw new Error('Image URL is missing');
-            }
+            const toast = document.createElement('toast-notification');
+            document.body.appendChild(toast);
+            toast.show('Preparing download...', 'info', 5000);
 
-            // Show loading toast
-            const loadingToast = document.createElement('toast-notification');
-            document.body.appendChild(loadingToast);
-            loadingToast.show('Preparing download...', 'info', 3000);
-
-            // Use our server endpoint to handle the download
             const response = await fetch(`/api/download?imageUrl=${encodeURIComponent(this._imageUrl)}`, {
                 method: 'GET',
                 credentials: 'include'
             });
 
             if (!response.ok) {
-                throw new Error(`Download failed: ${response.statusText}`);
+                throw new Error('Failed to download image');
             }
 
-            // Get filename from Content-Disposition header
-            const contentDisposition = response.headers.get('Content-Disposition');
-            const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-            const filename = filenameMatch ? filenameMatch[1] : `sticker-${Date.now()}.png`;
-
-            // Convert response to blob
             const blob = await response.blob();
-            
-            // Create download link
             const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            
-            // Clean up
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `image-${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-            document.body.removeChild(link);
+
+            const successToast = document.createElement('toast-notification');
+            document.body.appendChild(successToast);
+            successToast.show('Download complete!', 'success', 5000);
+        } catch (error) {
+            console.error('Download error:', error);
+            const errorToast = document.createElement('toast-notification');
+            document.body.appendChild(errorToast);
+            errorToast.show('Failed to download image', 'error', 5000);
+        }
+    }
+
+    handleDelete() {
+        if (confirm('Are you sure you want to delete this image?')) {
+            // Dispatch delete event
+            const event = new CustomEvent('deleteImage', {
+                bubbles: true,
+                composed: true,
+                detail: {
+                    imageUrl: this._imageUrl,
+                    generationId: this._id
+                }
+            });
+            this.dispatchEvent(event);
+        }
+    }
+
+    async handleUpscale() {
+        const upscaleButton = this.shadowRoot.querySelector('.menu-button[data-action="upscale"]');
+        if (!upscaleButton) return;
+
+        try {
+            upscaleButton.disabled = true;
+            const loadingHtml = `
+                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
+                Upscaling...
+            `;
+            upscaleButton.innerHTML = loadingHtml;
+            
+            const response = await fetch('/api/images/upscale', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imageUrl: this._imageUrl
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Failed to upscale image');
+            }
+            
+            // Update the component state
+            this.setAttribute('image-url', data.imageUrl);
+            this.setAttribute('is-upscaled', 'true');
+            this._isUpscaled = true;
+            
+            // Force image reload by adding a timestamp
+            const img = this.shadowRoot.querySelector('img');
+            if (img) {
+                const timestamp = new Date().getTime();
+                img.src = `${data.imageUrl}?t=${timestamp}`;
+            }
 
             // Show success toast
             const toast = document.createElement('toast-notification');
             document.body.appendChild(toast);
-            toast.show('Download complete', 'success', 3000);
-        } catch (error) {
-            console.error('Download error:', error);
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Failed to download image. Please try again.', 'error', 3000);
-        }
-    }
+            toast.show('Image upscaled successfully!', 'success', 5000);
 
-    handleUpscale() {
-        console.log('Upscale selected');
-        // Add your upscale handling logic here
-    }
-
-    normalizeImageUrl(url) {
-        // Ensure proper URL formatting
-        if (!url) return '';
-        
-        // Fix common URL issues
-        url = url.replace(/-webp$/, '.webp');
-        url = url.replace(/-png$/, '.png');
-        url = url.replace(/-jpg$/, '.jpg');
-        url = url.replace(/-jpeg$/, '.jpeg');
-        
-        return url;
-    }
-
-    handleMoveToTrash() {
-        console.log('handleMoveToTrash called'); // Debug log
-        const isInCollection = this.hasAttribute('collection-id');
-
-        if (isInCollection) {
-            // If in collection, remove from collection
-            const collectionId = this.getAttribute('collection-id');
-            const imageId = this.getAttribute('image-id');
-            
-            fetch(`/api/collections/${collectionId}/images/${imageId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
+            // Dispatch event to notify parent components
+            this.dispatchEvent(new CustomEvent('imageUpscaled', {
+                bubbles: true,
+                composed: true,
+                detail: {
+                    generationId: this._id,
+                    newImageUrl: data.imageUrl,
+                    isUpscaled: true
                 }
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Failed to remove from collection');
-                this.setAttribute('hidden', '');
-                const toast = document.createElement('toast-notification');
-                document.body.appendChild(toast);
-                toast.show('Image removed from collection', 'success', 3000);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                const toast = document.createElement('toast-notification');
-                document.body.appendChild(toast);
-                toast.show('Failed to remove from collection', 'error', 3000);
-            });
-        } else {
-            // If in recent generations, just hide the card
-            console.log('Hiding card from recent generations'); // Debug log
-            this.setAttribute('hidden', '');
+            }));
+
+            // Force re-render to update UI
+            this.render();
+
+        } catch (error) {
+            console.error('Error upscaling image:', error);
             const toast = document.createElement('toast-notification');
             document.body.appendChild(toast);
-            toast.show('Image removed from recent generations', 'success', 3000);
+            toast.show(error.message || 'Failed to upscale image. Please try again.', 'error', 5000);
+        } finally {
+            if (upscaleButton) {
+                upscaleButton.disabled = false;
+                upscaleButton.innerHTML = `
+                    <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
+                    Upscale
+                `;
+            }
         }
+    }
+
+    connectedCallback() {
+        // Check if image is upscaled based on URL when component is connected
+        if (this._imageUrl && this._imageUrl.includes('/upscaled/')) {
+            this._isUpscaled = true;
+            this.setAttribute('is-upscaled', 'true');
+        }
+        this.render();
+        this.setupEventListeners();
     }
 }
 

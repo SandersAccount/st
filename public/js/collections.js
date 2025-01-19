@@ -73,28 +73,29 @@ function displayCollections(collections) {
         
         // Create preview grid
         const previewGrid = document.createElement('div');
-        previewGrid.className = 'preview-grid';
+        previewGrid.className = 'collection-preview';
 
-        // Add up to 4 preview images
-        const previewImages = collection.images.slice(0, 4);
-        previewImages.forEach(image => {
+        // Get all images for the collection
+        const images = collection.images || [];
+        
+        // Create 6 preview slots (2x3 grid)
+        for (let i = 0; i < 6; i++) {
             const imgContainer = document.createElement('div');
-            imgContainer.className = 'preview-image';
             
-            const img = document.createElement('img');
-            img.src = image.imageUrl;
-            img.alt = collection.title;
-            img.loading = 'lazy';
+            if (i < images.length) {
+                // Add image if available
+                imgContainer.className = 'preview-image';
+                const img = document.createElement('img');
+                img.src = images[i].imageUrl;
+                img.alt = collection.title;
+                img.loading = 'lazy';
+                imgContainer.appendChild(img);
+            } else {
+                // Add empty slot
+                imgContainer.className = 'preview-image empty';
+            }
             
-            imgContainer.appendChild(img);
             previewGrid.appendChild(imgContainer);
-        });
-
-        // Fill remaining slots with empty previews
-        for (let i = previewImages.length; i < 4; i++) {
-            const emptyPreview = document.createElement('div');
-            emptyPreview.className = 'preview-image empty';
-            previewGrid.appendChild(emptyPreview);
         }
 
         card.appendChild(previewGrid);
@@ -103,8 +104,8 @@ function displayCollections(collections) {
         const info = document.createElement('div');
         info.className = 'collection-info';
         info.innerHTML = `
-            <h3>${collection.title}</h3>
-            <span>${collection.stats?.imageCount || 0} images</span>
+            <h3 class="collection-name">${collection.title}</h3>
+            <p class="collection-count">${collection.stats?.imageCount || 0} images</p>
         `;
         card.appendChild(info);
 
@@ -119,22 +120,20 @@ function displayCollections(collections) {
 
 function createNewCollectionCard() {
     const card = document.createElement('div');
-    card.className = 'collection-card new-collection';
+    card.className = 'collection-card create-new';
     
-    const icon = document.createElement('div');
-    icon.className = 'collection-icon';
-    icon.innerHTML = `
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-    `;
-
-    const title = document.createElement('div');
-    title.className = 'collection-title';
-    title.textContent = 'Create New Collection';
-
-    card.appendChild(icon);
-    card.appendChild(title);
+    const iconContainer = document.createElement('div');
+    iconContainer.className = 'create-new-icon';
+    
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-plus';
+    
+    const text = document.createElement('span');
+    text.textContent = 'Create New Collection';
+    
+    iconContainer.appendChild(icon);
+    iconContainer.appendChild(text);
+    card.appendChild(iconContainer);
 
     card.addEventListener('click', () => {
         document.getElementById('newCollectionModal').classList.add('active');

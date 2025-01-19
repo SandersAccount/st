@@ -86,12 +86,18 @@ export class CollectionsPage {
     }
 
     displayGenerations(generations) {
-        const grid = document.getElementById('generationsGrid');
-        grid.innerHTML = '';
+        const container = document.getElementById('recent-generations-grid');
+        if (!container) return;
+
+        container.innerHTML = '';
 
         generations.forEach(generation => {
-            const card = createImageCard(generation.imageUrl, generation.prompt);
-            grid.appendChild(card);
+            const card = document.createElement('generation-card');
+            card.setAttribute('image-url', generation.imageUrl);
+            card.setAttribute('prompt', generation.prompt || 'No prompt available');
+            card.setAttribute('generation-id', generation._id);
+            card.setAttribute('is-upscaled', generation.isUpscaled ? 'true' : 'false');
+            container.appendChild(card);
         });
     }
 }

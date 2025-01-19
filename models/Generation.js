@@ -14,22 +14,23 @@ const generationSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    settings: {
-        type: Object,
-        default: {}
+    status: {
+        type: String,
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
     },
-    collectionId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Collection'
+    isUpscaled: {
+        type: Boolean,
+        default: false
     },
-    timestamp: {
+    createdAt: {
         type: Date,
         default: Date.now
     }
 });
 
 // Index for faster queries
-generationSchema.index({ userId: 1, timestamp: -1 });
+generationSchema.index({ userId: 1, createdAt: -1 });
 
 const Generation = mongoose.model('Generation', generationSchema);
 export default Generation;
