@@ -55,7 +55,8 @@ export async function createTopbar() {
         centerSection.className = 'topbar-center';
 
         const navItems = [
-            { text: 'Generator', href: '/' },
+            { text: 'Prompt Sticker', href: '/' },
+            { text: 'Image Sticker', href: '/face-sticker.html' },
             { text: 'Collections', href: '/collections' }
         ];
 
@@ -64,7 +65,8 @@ export async function createTopbar() {
             link.href = item.href;
             link.className = 'nav-link';
             if (window.location.pathname === item.href || 
-                (item.href === '/collections' && window.location.pathname.startsWith('/collection/'))) {
+                (item.href === '/collections' && window.location.pathname.startsWith('/collection/')) ||
+                (item.href === '/face-sticker.html' && window.location.pathname.endsWith('face-sticker.html'))) {
                 link.classList.add('active');
             }
             link.textContent = item.text;

@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import './config/database.js';  // Import database connection
 import Replicate from 'replicate';
-import { saveImageFromUrl } from './utils/storage.js';
+import { saveImageFromUrl, uploadBuffer } from './utils/storage.js';
 import { dirname, join } from 'path';
 import mongoose from 'mongoose';
 import auth from './middleware/auth.js';
@@ -1512,6 +1512,98 @@ app.get('/api/collections/:collectionId/generations', async (req, res) => {
     } catch (error) {
         console.error('Error fetching collection generations:', error);
         res.status(500).json({ error: 'Failed to fetch generations' });
+    }
+});
+
+// Face to Sticker endpoint
+app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) => {
+    try {
+        console.log('Face to sticker request received');
+        const { prompt, style } = req.body;
+        const imageFile = req.file;
+
+        if (!imageFile) {
+            throw new Error('No image provided');
+        }
+
+        // Combine prompt and style
+        const fullPrompt = style ? `${prompt || ''} ${style}`.trim() : prompt;
+        console.log('Processing image with prompt:', fullPrompt);
+
+        // Save the uploaded image and get its URL
+        let imageUrl;
+        try {
+            imageUrl = await uploadBuffer(imageFile.buffer, 'face-upload');
+            console.log('Image saved successfully:', imageUrl);
+        } catch (uploadError) {
+            console.error('Error saving image:', uploadError);
+            throw new Error('Failed to process uploaded image');
+        }
+
+        console.log('Running face-to-sticker model with image:', imageUrl);
+
+        // Run the face-to-sticker model
+        const output = await replicate.run(
+            "fofr/face-to-sticker:764d4827ea159608a07cdde8ddf1c6000019627515eb02b6b449695fd547e5ef",
+            {
+                input: {
+                    image: imageUrl,
+                    steps: 20,
+                    width: 1024,
+                    height: 1024,
+                    prompt: fullPrompt,
+                    upscale: false,
+                    upscale_steps: 10,
+                    negative_prompt: "",
+                    prompt_strength: 4.5,
+                    ip_adapter_noise: 0.5,
+                    ip_adapter_weight: 0.2,
+                    instant_id_strength: 0.7
+                }
+            }
+        );
+
+        console.log('Model output received:', output);
+
+        if (!output || !output[0]) {
+            throw new Error('No output received from model');
+        }
+
+        // Download and save the generated image to our bucket
+        const generatedImageUrl = output[0];
+        console.log('Downloading generated image from:', generatedImageUrl);
+        
+        const response = await axios({
+            method: 'GET',
+            url: generatedImageUrl,
+            responseType: 'arraybuffer'
+        });
+
+        // Save to bucket
+        const savedImageUrl = await uploadBuffer(response.data, 'generations');
+        console.log('Saved generated image to bucket:', savedImageUrl);
+
+        // Save the generation with the bucket URL
+        const generation = await Generation.create({
+            prompt: fullPrompt,
+            imageUrl: savedImageUrl,
+            modelId: "face-to-sticker",
+            userId: req.userId
+        });
+
+        console.log('Generation saved successfully');
+
+        res.json({ 
+            success: true,
+            imageUrl: savedImageUrl,
+            generationId: generation._id
+        });
+    } catch (error) {
+        console.error('Face to sticker generation error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message || 'Failed to generate sticker'
+        });
     }
 });
 

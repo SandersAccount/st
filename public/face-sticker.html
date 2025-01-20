@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Sticker Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        /* Existing styles */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 6rem auto 2rem;
+            padding: 0 1rem;
+        }
+
+        .upload-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+        .upload-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: #2a2a2a;
+            padding: 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .upload-bar:hover {
+            background: #333;
+        }
+
+        .upload-icon {
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 0.9rem;
+            flex-grow: 1;
+        }
+
+        .thumbnail {
+            width: 48px;
+            height: 48px;
+            border-radius: 4px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .thumbnail.visible {
+            display: block;
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .filename {
+            color: #999;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .filename.visible {
+            display: block;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .prompt-section {
+            margin-bottom: 1.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #333;
+            border-radius: 8px;
+            min-height: 80px;
+            font-family: inherit;
+            background: #1a1a1a;
+            color: #fff;
+            resize: vertical;
+            margin-bottom: 1rem;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        .style-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #fff;
+            margin: 0 0 1rem 0;
+        }
+
+        .generate-button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .generate-button:hover {
+            background-color: #45a049;
+        }
+
+        .generate-button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 2rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #ff6b6b;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        generation-card {
+            display: block;
+            width: 100%;
+            max-width: 512px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+
+    <div class="container">
+        <h3 class="section-title">Enter the Keyword for your Sticker</h3>
+        
+        <div class="prompt-section">
+            <textarea id="prompt" placeholder="Enter your prompt..."></textarea>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-bar" id="uploadArea">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <span class="upload-text">Upload Image</span>
+                <div class="thumbnail" id="thumbnailContainer">
+                    <img id="imagePreview" alt="Preview">
+                </div>
+            </div>
+            <div class="filename" id="filename"></div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="style-section">
+            <h3 class="section-title">Choose a Style</h3>
+            <style-selector></style-selector>
+        </div>
+
+        <button id="generateBtn" class="generate-button" disabled>
+            <i class="fas fa-magic"></i>
+            Generate Image
+        </button>
+
+        <div id="result" class="result"></div>
+    </div>
+
+    <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
+        import '/js/components/StyleSelector.js';
+        import '/js/components/GenerationCard.js';
+        import '/js/components/CollectionModal.js';
+        import { showToast } from '/js/components/Toast.js';
+
+        // Initialize topbar
+        createTopbar();
+
+        // Initialize collection modal
+        const collectionModal = document.createElement('collection-modal');
+        document.body.appendChild(collectionModal);
+
+        // Also create the new collection modal
+        const newCollectionModal = document.createElement('new-collection-modal');
+        document.body.appendChild(newCollectionModal);
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const thumbnailContainer = document.getElementById('thumbnailContainer');
+        const filename = document.getElementById('filename');
+        const generateBtn = document.getElementById('generateBtn');
+        const promptInput = document.getElementById('prompt');
+        const resultDiv = document.getElementById('result');
+        const styleSelector = document.querySelector('style-selector');
+
+        let uploadedImage = null;
+        let selectedStyle = '';
+
+        // Handle style selection
+        styleSelector.addEventListener('styleChange', (event) => {
+            selectedStyle = event.detail.style.prompt;
+            console.log('Selected style prompt:', selectedStyle);
+        });
+
+        // Handle file upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#333';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.backgroundColor = '#2a2a2a';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.backgroundColor = '#2a2a2a';
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('Please upload an image file', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                uploadedImage = file;
+                imagePreview.src = e.target.result;
+                thumbnailContainer.classList.add('visible');
+                filename.textContent = file.name;
+                filename.classList.add('visible');
+                generateBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Handle generation
+        generateBtn.addEventListener('click', async () => {
+            if (!uploadedImage) {
+                showToast('Please upload an image first', 'error');
+                return;
+            }
+
+            generateBtn.disabled = true;
+            resultDiv.innerHTML = '<div class="loading">Generating your sticker...</div>';
+
+            try {
+                console.log('Sending image for processing...');
+                
+                // Create FormData and append the image and prompt
+                const formData = new FormData();
+                formData.append('image', uploadedImage);
+                formData.append('prompt', promptInput.value.trim());
+                formData.append('style', selectedStyle);
+
+                const response = await fetch('/api/face-to-sticker', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Generation failed');
+                }
+
+                console.log('Generation successful:', data);
+                
+                // Create generation card with the result
+                resultDiv.innerHTML = '';
+                const card = document.createElement('generation-card');
+                card.setAttribute('image-url', data.imageUrl);
+                card.setAttribute('prompt', promptInput.value);
+                card.setAttribute('generation-id', data.generationId);
+                resultDiv.appendChild(card);
+            } catch (error) {
+                console.error('Generation error:', error);
+                resultDiv.innerHTML = `<div class="error">Failed to generate sticker: ${error.message}</div>`;
+                showToast(`Failed to generate sticker: ${error.message}`, 'error');
+            } finally {
+                generateBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

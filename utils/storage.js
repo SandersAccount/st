@@ -184,3 +184,64 @@ export async function getImagePublicUrl(fileName) {
         throw error;
     }
 }
+
+/**
+ * Uploads a buffer directly to storage
+ * @param {Buffer} buffer - The buffer containing the file data
+ * @param {string} prefix - Optional prefix for the filename (e.g., 'face-upload/')
+ * @returns {Promise<string>} The public URL of the uploaded file
+ */
+export async function uploadBuffer(buffer, prefix = '') {
+    try {
+        // First ensure we're authorized
+        const auth = await ensureAuthorized();
+        
+        if (!Buffer.isBuffer(buffer)) {
+            buffer = Buffer.from(buffer);
+        }
+
+        console.log('Uploading buffer, size:', buffer.length);
+
+        if (buffer.length === 0) {
+            throw new Error('Buffer is empty');
+        }
+        
+        // Create a unique filename with appropriate folder prefix
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(7);
+        const filename = prefix ? 
+            `${prefix}/${timestamp}-${randomString}.png` : 
+            `${timestamp}-${randomString}.png`;
+        
+        // Get upload URL using known bucket ID
+        console.log('Getting upload URL...');
+        const { data: uploadUrl } = await b2.getUploadUrl({
+            bucketId: BUCKET_ID
+        });
+
+        if (!uploadUrl || !uploadUrl.uploadUrl || !uploadUrl.authorizationToken) {
+            console.error('Invalid upload URL response:', uploadUrl);
+            throw new Error('Failed to get upload URL from B2');
+        }
+        
+        console.log('Uploading file to B2...');
+        const uploadResult = await b2.uploadFile({
+            uploadUrl: uploadUrl.uploadUrl,
+            uploadAuthToken: uploadUrl.authorizationToken,
+            fileName: filename,
+            data: buffer,
+            contentType: 'image/png'
+        });
+
+        console.log('File uploaded successfully');
+        
+        // Get the public URL
+        const publicUrl = `${auth.data.downloadUrl}/file/${BUCKET_NAME}/${filename}`;
+        console.log('Public URL:', publicUrl);
+        
+        return publicUrl;
+    } catch (error) {
+        console.error('Error uploading buffer:', error);
+        throw error;
+    }
+}
