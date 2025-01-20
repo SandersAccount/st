@@ -199,34 +199,27 @@ export class StyleSelector extends HTMLElement {
             `;
         }).join('');
 
-        // Add click handlers
-        this.shadowRoot.querySelectorAll('.style-item').forEach(item => {
-            item.addEventListener('click', () => this.selectStyle(item.dataset.id));
-        });
+        // Add click handlers for style selection
+        container.querySelectorAll('.style-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const styleId = item.dataset.id;
+                this.selectedStyle = this.styles.find(s => s._id === styleId);
+                
+                // Update selected state visually
+                container.querySelectorAll('.style-item').forEach(i => {
+                    i.classList.toggle('selected', i.dataset.id === styleId);
+                });
 
-        // Select "No Style" by default
-        this.selectStyle('none');
+                // Dispatch change event
+                this.dispatchEvent(new CustomEvent('styleChange', {
+                    detail: { style: this.selectedStyle }
+                }));
+            });
+        });
     }
 
-    selectStyle(styleId) {
-        // Remove previous selection
-        this.shadowRoot.querySelectorAll('.style-item').forEach(item => {
-            item.classList.remove('selected');
-        });
-
-        // Add selection to clicked item
-        const selectedItem = this.shadowRoot.querySelector(`.style-item[data-id="${styleId}"]`);
-        if (selectedItem) {
-            selectedItem.classList.add('selected');
-            this.selectedStyle = this.styles.find(s => s._id === styleId);
-            
-            // Dispatch event
-            this.dispatchEvent(new CustomEvent('styleSelected', {
-                detail: this.selectedStyle,
-                bubbles: true,
-                composed: true
-            }));
-        }
+    getSelectedStyle() {
+        return this.selectedStyle;
     }
 
     getSelectedStylePrompt() {
@@ -234,4 +227,6 @@ export class StyleSelector extends HTMLElement {
     }
 }
 
-customElements.define('style-selector', StyleSelector);
+if (!customElements.get('style-selector')) {
+    customElements.define('style-selector', StyleSelector);
+}

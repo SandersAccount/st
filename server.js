@@ -239,10 +239,11 @@ app.use('/storage/images', express.static(join(__dirname, 'storage', 'images')))
 // Image generation endpoint
 app.post('/api/generate', async (req, res) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, style } = req.body;
         console.log('Starting image generation...');
         console.log('User:', req.userId);
         console.log('Prompt:', prompt);
+        console.log('Style:', style);
 
         // Check if user has enough credits
         const user = await User.findById(req.userId);
@@ -255,6 +256,10 @@ app.post('/api/generate', async (req, res) => {
             return res.status(500).json({ error: 'Replicate API token not configured' });
         }
 
+        // Combine prompt with style if provided
+        const fullPrompt = style ? `${prompt}, ${style}` : prompt;
+        console.log('Full prompt:', fullPrompt);
+
         const modelVersion = "fofr/sticker-maker:4acb778eb059772225ec213948f0660867b2e03f277448f18cf1800b96a65a1a";
         
         console.log('Calling Replicate API...');
@@ -265,7 +270,7 @@ app.post('/api/generate', async (req, res) => {
                     steps: 17,
                     width: 1152,
                     height: 1152,
-                    prompt: prompt,
+                    prompt: fullPrompt,
                     output_format: "png",
                     output_quality: 100,
                     negative_prompt: "ugly, blurry, poor quality, distorted",
@@ -290,8 +295,8 @@ app.post('/api/generate', async (req, res) => {
         // Create the generation record
         const generation = new Generation({
             userId: req.userId,
-            prompt: prompt,
-            imageUrl: savedImage.publicUrl, // Use the public URL from B2
+            prompt: fullPrompt,
+            imageUrl: savedImage.publicUrl,
             status: 'completed'
         });
 
@@ -299,23 +304,17 @@ app.post('/api/generate', async (req, res) => {
         console.log('Generation saved to database:', generation);
 
         // Deduct credits
-        const updatedUser = await User.findByIdAndUpdate(
-            req.userId,
-            { $inc: { credits: -1 } },
-            { new: true }
-        );
+        user.credits -= 1;
+        await user.save();
 
+        // Send response
         res.json({
-            generation: {
-                _id: generation._id,
-                imageUrl: generation.imageUrl,
-                prompt: generation.prompt
-            },
-            credits: updatedUser.credits
+            imageUrl: savedImage.publicUrl,
+            generation: generation
         });
     } catch (error) {
-        console.error('Error in image generation:', error);
-        res.status(500).json({ error: 'Failed to generate image', details: error.message });
+        console.error('Error generating image:', error);
+        res.status(500).json({ error: 'Failed to generate image' });
     }
 });
 
@@ -338,16 +337,9 @@ app.get('/api/download', async (req, res) => {
             return res.status(404).json({ error: 'Image not found' });
         }
 
-        // Use axios to stream the image
-        const response = await axios({
-            method: 'get',
-            url: imageUrl,
-            responseType: 'stream'
-        });
-
-        // Get file extension from URL
-        const url = new URL(imageUrl);
-        const pathParts = url.pathname.split('.');
+        // Parse the image URL to get file extension and name
+        const parsedUrl = new URL(imageUrl);
+        const pathParts = parsedUrl.pathname.split('.');
         const extension = pathParts[pathParts.length - 1].toLowerCase();
         const validExtensions = ['png', 'jpg', 'jpeg', 'webp'];
         
@@ -355,10 +347,10 @@ app.get('/api/download', async (req, res) => {
             return res.status(400).json({ error: 'Invalid image format' });
         }
 
-        // Determine content type based on extension
+        // Determine content type
         const contentType = {
             png: 'image/png',
-            jpg: 'image/jpeg', 
+            jpg: 'image/jpeg',
             jpeg: 'image/jpeg',
             webp: 'image/webp'
         }[extension];
@@ -370,8 +362,15 @@ app.get('/api/download', async (req, res) => {
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3005');
-        
-        // Stream the image to the client
+
+        // Stream the image using axios
+        const response = await axios({
+            method: 'get',
+            url: imageUrl,
+            responseType: 'stream'
+        });
+
+        // Pipe the response stream to the client
         response.data.pipe(res);
     } catch (error) {
         console.error('Download error:', error);

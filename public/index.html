@@ -106,32 +106,86 @@
         
         .result {
             margin-top: 2rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .generation-container {
             position: relative;
-            width: 400px;
+            width: 100%;
+            max-width: 512px;
             margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         .generation-image {
             width: 100%;
             height: auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        
-        .loading {
-            margin: 1rem 0;
-            color: #999;
+            display: block;
         }
 
-        h1 {
-            margin: 0 0 2rem;
-            font-weight: 600;
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #ff6b6b;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+
+        generation-card {
+            display: block;
+            width: 100%;
+            max-width: 1512px;
+            margin: 0 auto;
+        }
+
+        .menu-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0));
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .image-container:hover .menu-overlay {
+            opacity: 1;
+        }
+
+        .menu-button {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .menu-button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .menu-button img {
+            width: 16px;
+            height: 16px;
+            opacity: 0.8;
         }
         
         .style-section {
@@ -438,7 +492,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.2s;
         }
 
         .preview-image.empty {
@@ -594,18 +647,8 @@
     </style>
 </head>
 <body>
+    <div id="topbar"></div>
 
-
-
-
-
-
-
-
-
-
-
-    
     <div class="container">
         <h3 id="main-title">Enter the Keyword for you Sticker</h3>
         
@@ -680,170 +723,131 @@
     <script type="module">
         import { createTopbar } from '/js/components/Topbar.js';
         import '/js/components/StyleSelector.js';
-        import { createImageCard } from '/js/components/ImageCard.js';
-        import '/js/components/Toast.js';
-        import { showToast } from '/js/components/Toast.js';
         import '/js/components/GenerationCard.js';
+        import { showToast } from '/js/components/Toast.js';
         import '/js/components/CollectionModal.js';
-
-        let currentImageData = null;
+        import { createCollectionCard, createNewCollectionCard } from '/js/components/CollectionCard.js';
+        import '/js/components/CollectionSelector.js';
+        import '/js/components/ImageCard.js';
 
         // Initialize topbar
         createTopbar();
 
-        // Check for collection ID in URL on page load
+        // Generate button functionality
+        const generateBtn = document.getElementById('generate');
+        const promptInput = document.getElementById('prompt');
+        const resultDiv = document.getElementById('result');
+
+        generateBtn.addEventListener('click', async () => {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+
+            // Get selected style
+            const styleSelector = document.querySelector('style-selector');
+            const selectedStyle = styleSelector.getSelectedStyle();
+            
+            // If no style is selected, use default
+            const stylePrompt = selectedStyle ? selectedStyle.prompt : '';
+            
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+            resultDiv.innerHTML = '<div class="loading">Generating your image...</div>';
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt,
+                        style: stylePrompt
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Generation failed');
+                }
+
+                const data = await response.json();
+                
+                // Create generation card
+                const generationCard = document.createElement('generation-card');
+                generationCard.setAttribute('image-url', data.imageUrl);
+                generationCard.setAttribute('prompt', prompt);
+                generationCard.setAttribute('generation-id', data.generation._id);
+                
+                resultDiv.innerHTML = '';
+                resultDiv.appendChild(generationCard);
+
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">Failed to generate image. Please try again.</div>';
+                showToast('Failed to generate image', 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Image';
+            }
+        });
+
+        // Initialize sections
         document.addEventListener('DOMContentLoaded', () => {
-            const path = window.location.pathname;
-            const collectionMatch = path.match(/\/collection\/([^\/]+)/);
-            
-            if (collectionMatch) {
-                const collectionId = collectionMatch[1];
-                showSection('collections');
-                loadCollectionById(collectionId);
-            } else {
-                showSection('generator');
-            }
+            showSection('generator');
+            initializeCollections();
         });
 
-        // Load collection by ID
-        async function loadCollectionById(collectionId) {
+        // Collection handling
+        async function initializeCollections() {
+            const collectionsGrid = document.querySelector('.collections-grid');
+            if (!collectionsGrid) return;
+
             try {
-                const response = await fetch(`/api/collections/${collectionId}`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Collection not found');
-                
-                const collection = await response.json();
-                await viewCollection(collection._id, collection.name);
-            } catch (error) {
-                console.error('Error loading collection:', error);
-                showToast('Collection not found', 'error');
-                showCollections();
-            }
-        }
+                // Clear existing content except create new button
+                const createNewCard = collectionsGrid.querySelector('.create-new');
+                collectionsGrid.innerHTML = '';
+                if (createNewCard) {
+                    collectionsGrid.appendChild(createNewCard);
+                }
 
-        // View a specific collection
-        async function viewCollection(collectionId, collectionName) {
-            try {
-                const response = await fetch(`/api/collections/${collectionId}/images`, {
-                    credentials: 'include'
-                });
-                if (!response.ok) throw new Error('Failed to load collection images');
-                
-                const images = await response.json();
-                
-                // Update UI
-                document.getElementById('collections').style.display = 'none';
-                document.getElementById('collection-view').style.display = 'block';
-                document.getElementById('collection-name').textContent = collectionName;
-                
-                // Display images
-                const imagesGrid = document.getElementById('collection-images');
-                imagesGrid.innerHTML = '';
-                
-                images.forEach(image => {
-                    const generationCard = document.createElement('generation-card');
-                    generationCard.setAttribute('image-url', image.imageUrl);
-                    generationCard.setAttribute('prompt', image.prompt || '');
-                    generationCard.setAttribute('is-upscaled', image.isUpscaled || 'false');
-                    generationCard.setAttribute('generation-id', image._id);
-                    imagesGrid.appendChild(generationCard);
-                });
-
-                // Update URL without redirecting
-                const newUrl = `/collection/${collectionId}`;
-                window.history.pushState({ collectionId }, '', newUrl);
-            } catch (error) {
-                console.error('Error viewing collection:', error);
-                showToast('Failed to load collection images', 'error');
-            }
-        }
-
-        // Function to show collections page
-        window.showCollections = function() {
-            document.getElementById('collection-view').style.display = 'none';
-            document.getElementById('collections').style.display = 'block';
-            // Update URL to collections page
-            window.history.pushState({}, '', '/collections');
-            loadCollectionsPage();
-        }
-
-        // Handle browser back/forward
-        window.addEventListener('popstate', (event) => {
-            const path = window.location.pathname;
-            const collectionMatch = path.match(/\/collection\/([^\/]+)/);
-            
-            if (collectionMatch) {
-                const collectionId = collectionMatch[1];
-                loadCollectionById(collectionId);
-            } else {
-                showCollections();
-            }
-        });
-
-        // Load collections for the collections page
-        async function loadCollectionsPage() {
-            try {
+                // Fetch collections
                 const response = await fetch('/api/collections', {
                     credentials: 'include'
                 });
-                if (!response.ok) throw new Error('Failed to load collections');
                 
+                if (!response.ok) {
+                    throw new Error('Failed to fetch collections');
+                }
+
                 const collections = await response.json();
-                const collectionsGrid = document.querySelector('.collections-grid');
-                
-                // Keep the "Create New" card
-                const createNewCard = collectionsGrid.querySelector('.create-new');
-                collectionsGrid.innerHTML = '';
-                collectionsGrid.appendChild(createNewCard);
-                
+
+                // Add collection cards
                 collections.forEach(collection => {
-                    const card = document.createElement('div');
-                    card.className = 'collection-card';
-                    card.setAttribute('data-collection-id', collection._id);
-
-                    // Create preview images HTML
-                    let previewImagesHtml = '';
-                    if (collection.previewUrls && collection.previewUrls.length > 0) {
-                        collection.previewUrls.forEach(url => {
-                            previewImagesHtml += `
-                                <div class="preview-image loading">
-                                    <img src="${url}" alt="" 
-                                         onload="this.parentElement.classList.remove('loading')"
-                                         onerror="this.parentElement.classList.remove('loading'); this.parentElement.classList.add('error')">
-                                </div>
-                            `;
-                        });
-                    }
-                    
-                    // Add empty preview images to fill the grid
-                    const emptyCount = 6 - (collection.previewUrls?.length || 0);
-                    for (let i = 0; i < emptyCount; i++) {
-                        previewImagesHtml += '<div class="preview-image empty"></div>';
-                    }
-
-                    card.innerHTML = `
-                        <div class="collection-preview">
-                            ${previewImagesHtml}
-                        </div>
-                        <div class="collection-info">
-                            <h3 class="collection-name">${collection.name}</h3>
-                            <p class="collection-count">${collection.imageCount || 0} images</p>
-                        </div>
-                    `;
-                    
-                    // Add click handler to view collection
-                    card.addEventListener('click', () => {
-                        viewCollection(collection._id, collection.name);
-                    });
-                    
-                    collectionsGrid.appendChild(card);
+                    const card = createCollectionCard(collection);
+                    collectionsGrid.insertBefore(card, createNewCard);
                 });
+
+                // Add click handler for create new
+                const createNewButton = collectionsGrid.querySelector('.create-new');
+                if (createNewButton) {
+                    createNewButton.addEventListener('click', () => {
+                        const collectionModal = document.querySelector('collection-modal');
+                        if (collectionModal) {
+                            collectionModal.showNewCollectionDialog();
+                        }
+                    });
+                }
+
             } catch (error) {
                 console.error('Error loading collections:', error);
                 showToast('Failed to load collections', 'error');
             }
         }
+
+        // Listen for collection updates
+        window.addEventListener('collectionCreated', initializeCollections);
+        window.addEventListener('imageAddedToCollection', initializeCollections);
     </script>
     <script>
         function handleLogout(event) {

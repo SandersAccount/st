@@ -1,4 +1,5 @@
 import { CollectionSelector } from './CollectionSelector.js';
+import { showToast } from './Toast.js';
 
 export class GenerationCard extends HTMLElement {
     constructor() {
@@ -300,16 +301,12 @@ export class GenerationCard extends HTMLElement {
     }
 
     handleShowPrompt() {
-        const toast = document.createElement('toast-notification');
-        document.body.appendChild(toast);
-        toast.show(this._prompt || 'No prompt available', 'info', 5000);
+        showToast(this._prompt || 'No prompt available', 'info');
     }
 
     async handleDownload() {
         try {
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Preparing download...', 'info', 5000);
+            showToast('Preparing download...', 'info');
 
             const response = await fetch(`/api/download?imageUrl=${encodeURIComponent(this._imageUrl)}`, {
                 method: 'GET',
@@ -330,14 +327,10 @@ export class GenerationCard extends HTMLElement {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
 
-            const successToast = document.createElement('toast-notification');
-            document.body.appendChild(successToast);
-            successToast.show('Download complete!', 'success', 5000);
+            showToast('Download complete!', 'success');
         } catch (error) {
             console.error('Download error:', error);
-            const errorToast = document.createElement('toast-notification');
-            document.body.appendChild(errorToast);
-            errorToast.show('Failed to download image', 'error', 5000);
+            showToast('Failed to download image', 'error');
         }
     }
 
@@ -396,9 +389,7 @@ export class GenerationCard extends HTMLElement {
             }
 
             // Show success toast
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Image upscaled successfully!', 'success', 5000);
+            showToast('Image upscaled successfully!', 'success');
 
             // Dispatch event to notify parent components
             this.dispatchEvent(new CustomEvent('imageUpscaled', {
@@ -416,9 +407,7 @@ export class GenerationCard extends HTMLElement {
 
         } catch (error) {
             console.error('Error upscaling image:', error);
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show(error.message || 'Failed to upscale image. Please try again.', 'error', 5000);
+            showToast('Failed to upscale image. Please try again.', 'error');
         } finally {
             if (upscaleButton) {
                 upscaleButton.disabled = false;
@@ -441,7 +430,10 @@ export class GenerationCard extends HTMLElement {
     }
 }
 
-customElements.define('generation-card', GenerationCard);
+// Define the custom element
+if (!customElements.get('generation-card')) {
+    customElements.define('generation-card', GenerationCard);
+}
 
 // Listen for collection creation to add pending image
 document.addEventListener('DOMContentLoaded', () => {

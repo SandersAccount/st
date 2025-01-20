@@ -1,4 +1,4 @@
-import { Toast } from './Toast.js';
+import { showToast } from './Toast.js';
 
 export class CollectionModal extends HTMLElement {
     constructor() {
@@ -177,9 +177,7 @@ export class CollectionModal extends HTMLElement {
             this.renderCollections();
         } catch (error) {
             console.error('Error fetching collections:', error);
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Failed to load collections', 'error', 3000);
+            showToast('Failed to load collections', 'error');
         }
     }
 
@@ -279,9 +277,7 @@ export class CollectionModal extends HTMLElement {
             this.show();
         } catch (error) {
             console.error('Error creating collection:', error);
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Failed to create collection', 'error');
+            showToast('Failed to create collection', 'error');
         }
     }
 
@@ -321,10 +317,7 @@ export class CollectionModal extends HTMLElement {
             }
 
             // Show success message
-            const toast = document.createElement('toast-message');
-            toast.setAttribute('message', 'Added to collection');
-            toast.setAttribute('type', 'success');
-            document.body.appendChild(toast);
+            showToast('Added to collection', 'success');
 
             // Hide modal
             this.hide();
@@ -341,10 +334,7 @@ export class CollectionModal extends HTMLElement {
 
         } catch (error) {
             console.error('Error adding to collection:', error);
-            const toast = document.createElement('toast-message');
-            toast.setAttribute('message', 'Failed to add to collection');
-            toast.setAttribute('type', 'error');
-            document.body.appendChild(toast);
+            showToast('Failed to add to collection', 'error');
         }
     }
 
@@ -508,7 +498,7 @@ class NewCollectionModal extends HTMLElement {
         const name = input.value.trim();
 
         if (!name) {
-            this.showToast('Please enter a collection name', 'error');
+            showToast('Please enter a collection name', 'error');
             return;
         }
 
@@ -524,7 +514,7 @@ class NewCollectionModal extends HTMLElement {
             if (!response.ok) throw new Error('Failed to create collection');
 
             const collection = await response.json();
-            this.showToast('Collection created successfully!', 'success');
+            showToast('Collection created successfully!', 'success');
             this.hide();
             
             // Dispatch event to notify collection creation
@@ -536,7 +526,7 @@ class NewCollectionModal extends HTMLElement {
             input.value = '';
         } catch (error) {
             console.error('Error creating collection:', error);
-            this.showToast('Failed to create collection', 'error');
+            showToast('Failed to create collection', 'error');
         }
     }
 
@@ -549,14 +539,6 @@ class NewCollectionModal extends HTMLElement {
 
     hide() {
         this.classList.remove('active');
-    }
-
-    showToast(message, type) {
-        const toast = document.querySelector('toast-notification') || document.createElement('toast-notification');
-        if (!toast.parentElement) {
-            document.body.appendChild(toast);
-        }
-        toast.show(message, type);
     }
 }
 
