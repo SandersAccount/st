@@ -6,36 +6,29 @@ const auth = async (req, res, next) => {
         const token = req.cookies.token;
         
         if (!token) {
-            throw new Error('No token provided');
+            return res.status(401).json({ error: 'No token provided' });
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        if (!decoded || !decoded.userId) {
-            throw new Error('Invalid token');
+        const user = await User.findById(decoded.userId);
+
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
         }
 
-        const user = await User.findById(decoded.userId).select('-password');
-        
-        if (!user) {
-            throw new Error('User not found');
+        // Check if user is blocked
+        if (user.blocked && user.blocked.status) {
+            return res.status(403).json({ 
+                error: 'Account blocked',
+                reason: user.blocked.reason || 'No reason provided',
+                blockedAt: user.blocked.blockedAt
+            });
         }
 
         req.user = user;
         next();
     } catch (error) {
-        console.error('Auth middleware error:', error.message);
-        
-        // Check if the request is for an HTML page
-        const isHtmlRequest = req.headers.accept && req.headers.accept.includes('text/html');
-        
-        if (isHtmlRequest) {
-            // Redirect to login page for HTML requests
-            return res.redirect('/auth');
-        } else {
-            // Return JSON error for API requests
-            return res.status(401).json({ error: 'Please authenticate' });
-        }
+        res.status(401).json({ error: 'Invalid token' });
     }
 };
 

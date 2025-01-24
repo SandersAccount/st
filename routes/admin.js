@@ -114,59 +114,63 @@ router.get('/users/:userId', [auth, adminAuth], async (req, res) => {
 router.put('/users/:userId', [auth, adminAuth], async (req, res) => {
     try {
         const { userId } = req.params;
-        const { role, credits } = req.body;
+        const { name, email, password, credits } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Update role if provided
-        if (role) {
-            if (role !== 'admin' && role !== 'user') {
-                return res.status(400).json({ error: 'Invalid role' });
-            }
-            user.role = role;
+        // Don't allow editing admin user through this endpoint
+        if (user.role === 'admin') {
+            return res.status(403).json({ error: 'Cannot edit admin user through this endpoint' });
         }
 
-        // Update credits if provided
-        if (credits) {
-            const amount = parseInt(credits);
-            if (isNaN(amount)) {
-                return res.status(400).json({ error: 'Invalid credits amount' });
-            }
-
-            user.credits = (user.credits || 0) + amount;
-            
-            // Add to credit history
-            if (!user.creditHistory) {
-                user.creditHistory = [];
-            }
-            
-            user.creditHistory.push({
-                type: 'admin',
-                amount: amount,
-                details: `Credits added by admin`,
-                timestamp: new Date()
-            });
-            
-            user.markModified('creditHistory');
-        }
+        // Update user fields
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (password) user.password = password; // Will be hashed by the User model middleware
+        if (credits !== undefined) user.credits = credits;
 
         await user.save();
-        res.json({ 
+
+        res.json({
             message: 'User updated successfully',
             user: {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role,
-                credits: user.credits
+                credits: user.credits,
+                role: user.role
             }
         });
     } catch (error) {
         console.error('Error updating user:', error);
         res.status(500).json({ error: 'Failed to update user' });
+    }
+});
+
+// Delete user
+router.delete('/users/:userId', [auth, adminAuth], async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Don't allow deleting admin user
+        if (user.role === 'admin') {
+            return res.status(403).json({ error: 'Cannot delete admin user' });
+        }
+
+        await User.findByIdAndDelete(userId);
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ error: 'Failed to delete user' });
     }
 });
 
@@ -249,6 +253,50 @@ router.post('/credits/approve/:requestId', [auth, adminAuth], async (req, res) =
     }
 });
 
+// Create test user
+router.post('/users/create', [auth, adminAuth], async (req, res) => {
+    try {
+        const { name, email, password, credits, registered, role, subscription, creditHistory, usage } = req.body;
+
+        // Check if email already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email already exists' });
+        }
+
+        // Create new user
+        const user = new User({
+            name,
+            email,
+            password, // Will be hashed by the User model middleware
+            credits,
+            registered,
+            role,
+            subscription,
+            creditHistory,
+            usage,
+            createdAt: new Date(),
+            lastLogin: new Date()
+        });
+
+        await user.save();
+
+        res.status(201).json({
+            message: 'User created successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                credits: user.credits,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({ error: 'Failed to create user' });
+    }
+});
+
 router.post('/register', async (req, res) => {
     const { email, password, name } = req.body; // Include name in the registration data
 
@@ -277,6 +325,50 @@ router.post('/register', async (req, res) => {
     });
     await newUser.save();
     res.status(201).json({ message: 'Registration successful!' });
+});
+
+// Block/Unblock user
+router.post('/users/:userId/block', [auth, adminAuth], async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { blocked, reason } = req.body;
+        const adminId = req.user._id; // Get admin ID from auth middleware
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Don't allow blocking admin users
+        if (user.role === 'admin') {
+            return res.status(403).json({ error: 'Cannot block admin users' });
+        }
+
+        // Update blocked status
+        user.blocked = {
+            status: blocked,
+            reason: blocked ? reason : null,
+            blockedAt: blocked ? new Date() : null,
+            blockedBy: blocked ? adminId : null
+        };
+
+        await user.save();
+
+        res.json({
+            message: `User ${blocked ? 'blocked' : 'unblocked'} successfully`,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                credits: user.credits,
+                role: user.role,
+                blocked: user.blocked
+            }
+        });
+    } catch (error) {
+        console.error('Error updating user block status:', error);
+        res.status(500).json({ error: 'Failed to update user block status' });
+    }
 });
 
 export default router;

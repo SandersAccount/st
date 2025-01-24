@@ -184,6 +184,28 @@
             }
         }
 
+        const defaultVariables = {
+            products: [
+                {
+                    "name": "StickerLab",
+                    "url": "https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b",
+                    "productId": "wso_svyh7b"
+                },
+                {
+                    "name": "StickerLab Unlimited",
+                    "url": "https://warriorplus.com/o2/buy/jvrcjg/wj2vl6/kwc43t",
+                    "productId": "wso_kwc43t"
+                }
+            ],
+            creditProducts: [
+                {
+                    "credits": 100,
+                    "productId": "wso_h0pdbg",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/jvrcjg/vdcb4x/h0pdbg"
+                }
+            ]
+        };
+
         function createVariableItem(variable) {
             const isArray = Array.isArray(variable.value);
             const isObject = typeof variable.value === 'object' && variable.value !== null && !isArray;

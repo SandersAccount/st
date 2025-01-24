@@ -56,15 +56,20 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin'],
         default: 'user'
     },
-    credits: {
-        type: Number,
-        default: 100,  // Initial credits for new users
-        min: 0
+    credits: { 
+        type: mongoose.Schema.Types.Mixed, 
+        default: 0,
+        get: function(v) {
+            return v === 123654 ? "unlimited" : v; 
+        },
+        set: function(v) {
+            return v === "unlimited" ? 123654 : v; 
+        }
     },
     subscription: {
         plan: {
             type: String,
-            enum: ['free', 'pro', 'enterprise'],
+            enum: ['free', 'pro', 'enterprise', 'basic', 'unlimited'],
             default: 'free'
         },
         status: {
@@ -76,10 +81,26 @@ const userSchema = new mongoose.Schema({
         endDate: Date
     },
     creditRequests: [creditRequestSchema],
-    creditHistory: [{ // Added creditHistory field
+    creditHistory: [{ 
         product: String,
         purchasedAt: Date
     }],
+    blocked: {
+        status: {
+            type: Boolean,
+            default: false
+        },
+        reason: {
+            type: String
+        },
+        blockedAt: {
+            type: Date
+        },
+        blockedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    },
     createdAt: {
         type: Date,
         default: Date.now
