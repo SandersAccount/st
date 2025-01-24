@@ -57,6 +57,7 @@ export async function createTopbar() {
         const navItems = [
             { text: 'Prompt Sticker', href: '/' },
             { text: 'Image Sticker', href: '/face-sticker.html' },
+            { text: 'Sticker Editor', href: '/sticker-editor.html' },
             { text: 'Collections', href: '/collections' }
         ];
 

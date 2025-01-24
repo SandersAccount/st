@@ -171,4 +171,103 @@ router.get('/user', auth, async (req, res) => {
     }
 });
 
+// Auth check endpoint
+router.get('/check', auth, (req, res) => {
+    res.status(200).json({ 
+        user: {
+            id: req.user._id,
+            email: req.user.email,
+            name: req.user.name
+        }
+    });
+});
+
+// Create or update admin user
+router.post('/create-admin', async (req, res) => {
+    try {
+        const { email, password, name } = req.body;
+
+        // Check if admin exists
+        let admin = await User.findOne({ role: 'admin' });
+        
+        if (admin) {
+            // Update existing admin
+            admin.email = email;
+            admin.name = name;
+            if (password) {
+                admin.password = password; // Will be hashed by the User model middleware
+            }
+            await admin.save();
+
+            const token = jwt.sign({ userId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+            });
+
+            return res.status(200).json({
+                message: 'Admin user updated successfully',
+                user: {
+                    id: admin._id,
+                    email: admin.email,
+                    name: admin.name,
+                    role: admin.role
+                }
+            });
+        }
+
+        // Create new admin user if none exists
+        admin = new User({
+            email,
+            password,
+            name,
+            role: 'admin',
+            credits: 1000,
+            registered: true,
+            subscription: {
+                plan: 'free',
+                status: 'active'
+            },
+            creditHistory: [{
+                product: 'AdminAccount',
+                credits: 1000,
+                date: new Date(),
+                transactionId: 'INITIAL_ADMIN'
+            }],
+            usage: {
+                imagesGenerated: 0,
+                savedPresets: 0
+            },
+            createdAt: new Date(),
+            lastLogin: new Date()
+        });
+
+        await admin.save();
+        
+        // Create and set token
+        const token = jwt.sign({ userId: admin._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
+
+        res.status(201).json({
+            message: 'Admin user created successfully',
+            user: {
+                id: admin._id,
+                email: admin.email,
+                name: admin.name,
+                role: admin.role
+            }
+        });
+    } catch (error) {
+        console.error('Error creating/updating admin:', error);
+        res.status(500).json({ error: 'Failed to create/update admin user' });
+    }
+});
+
 export default router;

@@ -238,6 +238,10 @@ export class GenerationCard extends HTMLElement {
                         <img src="/images/icons/ph-file-code-light.svg" />
                         Prompt
                     </button>
+                    <button class="menu-button" data-action="edit" title="Edit in Sticker Editor">
+                        <img src="/images/icons/ph-pencil-simple-light.svg" />
+                        Edit
+                    </button>
                     <button class="menu-button" data-action="delete" title="Delete Image">
                         <img src="/images/icons/ph-trash-light.svg" />
                         Delete
@@ -272,6 +276,9 @@ export class GenerationCard extends HTMLElement {
                         break;
                     case 'prompt':
                         this.handleShowPrompt();
+                        break;
+                    case 'edit':
+                        this.handleEdit();
                         break;
                     case 'delete':
                         this.handleDelete();
@@ -417,6 +424,13 @@ export class GenerationCard extends HTMLElement {
                 `;
             }
         }
+    }
+
+    handleEdit() {
+        // Redirect to sticker editor with the image URL
+        const editorUrl = new URL('/sticker-editor.html', window.location.origin);
+        editorUrl.searchParams.set('image', this._imageUrl);
+        window.location.href = editorUrl.toString();
     }
 
     connectedCallback() {

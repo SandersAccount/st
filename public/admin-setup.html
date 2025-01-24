@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Setup</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #111;
+            color: #fff;
+            margin: 0;
+            padding: 2rem;
+        }
+        .setup-form {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #333;
+            border-radius: 4px;
+            background: #222;
+            color: #fff;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: #ff1cf7;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #d417cc;
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .alert-success {
+            background: #1a472a;
+            color: #4ade80;
+        }
+        .alert-error {
+            background: #481a1d;
+            color: #f87171;
+        }
+        .note {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 1rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-form">
+        <h1>Setup Admin Account</h1>
+        <div id="alert" class="alert" style="display: none;"></div>
+        <form id="adminForm" onsubmit="setupAdmin(event)">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" id="name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Setup Admin Account</button>
+        </form>
+        <p class="note">If an admin account already exists, this will update its credentials.</p>
+    </div>
+
+    <script>
+        async function setupAdmin(event) {
+            event.preventDefault();
+            const form = event.target;
+            const alert = document.getElementById('alert');
+            
+            try {
+                const response = await fetch('/api/auth/create-admin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: form.name.value,
+                        email: form.email.value,
+                        password: form.password.value
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to setup admin account');
+                }
+
+                alert.textContent = data.message + ' Redirecting to login page...';
+                alert.className = 'alert alert-success';
+                alert.style.display = 'block';
+
+                // Redirect to login page after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 2000);
+
+            } catch (error) {
+                alert.textContent = error.message;
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

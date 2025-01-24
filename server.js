@@ -226,6 +226,11 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/admin', auth, adminAuth, adminRoutes); // Add both auth middlewares in correct order
+app.use('/api/credits', creditsRoutes);
+app.use('/api/ipn', ipnRouter);
+app.use('/api/variables', variablesRouter);
 
 // Logout endpoint
 app.post('/api/auth/logout', (req, res) => {
@@ -1608,11 +1613,7 @@ app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) 
 });
 
 // Mount routes
-app.use('/api/subscription', subscriptionRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/credits', creditsRoutes);
-app.use('/api/ipn', upload.none(), ipnRouter);
-app.use('/api/variables', variablesRouter);
+// Removed duplicate route mounts
 
 // Catch-all route to handle client-side routing
 app.get('*', (req, res) => {
