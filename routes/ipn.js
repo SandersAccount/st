@@ -150,15 +150,27 @@ router.post('/credits/notification', async (req, res) => {
             return res.status(401).json({ error: 'Invalid security key' });
         }
 
+        // Find user by email
         let user = await User.findOne({ email: buyerEmail });
         
-        // Get StickerLab and Unlimited product info
+        // Get product information
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
-        const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
-        const unlimitedProductId = 'wso_kwc43t';
+        const unlimitedVar = await Variable.findOne({ key: 'unlimitedProduct' });
+        
+        // Get product IDs
+        const stickerLabProductId = stickerLabVar?.value?.productId || 'wso_svyh7b';
+        const unlimitedProductId = unlimitedVar?.value?.productId || 'wso_kwc43t';
 
+        console.log('Product validation:', {
+            receivedProduct: itemNumber,
+            stickerLabId: stickerLabProductId,
+            unlimitedId: unlimitedProductId,
+            isUnlimited: itemNumber === unlimitedProductId,
+            isStickerLab: itemNumber === stickerLabProductId
+        });
+
+        // Handle new user creation
         if (!user) {
-            // Create a new user without a password
             if (itemNumber === stickerLabProductId || itemNumber === unlimitedProductId) {
                 user = new User({
                     email: buyerEmail,
@@ -169,6 +181,8 @@ router.post('/credits/notification', async (req, res) => {
                         purchasedAt: new Date()
                     }],
                 });
+
+                // Set unlimited credits if unlimited product
                 if (itemNumber === unlimitedProductId) {
                     user.credits = 123654; // Unlimited credits
                     user.subscription = {
@@ -176,12 +190,17 @@ router.post('/credits/notification', async (req, res) => {
                         status: 'active'
                     };
                 }
+
                 await user.save();
                 console.log('New user created from IPN:', user.email);
+            } else {
+                console.log('Unknown product:', itemNumber);
+                return res.status(400).json({ error: 'Unknown product' });
             }
         } else {
-            // Update existing user with purchase information
+            // Update existing user
             if (itemNumber === unlimitedProductId) {
+                console.log('Upgrading user to unlimited:', user.email);
                 user.credits = 123654; // Set to unlimited
                 user.subscription = {
                     plan: 'unlimited',
@@ -191,7 +210,6 @@ router.post('/credits/notification', async (req, res) => {
                     product: 'StickerLab Unlimited',
                     purchasedAt: new Date()
                 });
-                console.log('User upgraded to Unlimited:', user.email);
             } else if (itemNumber === stickerLabProductId) {
                 user.creditHistory.push({
                     product: 'StickerLab',
@@ -201,17 +219,22 @@ router.post('/credits/notification', async (req, res) => {
                 if (user.credits !== 123654) {
                     user.credits = (user.credits || 0) + 100;
                 }
-                console.log('User gained access to StickerLab:', user.email);
             } else {
                 // Handle credit package purchase
-                const credits = await getCreditAmount(itemNumber);
-                if (credits && user.credits !== 123654) { // Only add if not unlimited
-                    user.credits = (user.credits || 0) + credits;
+                const creditProducts = await Variable.findOne({ key: 'creditProducts' });
+                const creditProduct = creditProducts?.value?.find(p => p.productId === itemNumber);
+                
+                if (creditProduct) {
+                    if (user.credits !== 123654) { // Only add if not unlimited
+                        user.credits = (user.credits || 0) + creditProduct.credits;
+                    }
                     user.creditHistory.push({
-                        product: `Credit Purchase (${credits})`,
+                        product: `Credit Purchase (${creditProduct.credits})`,
                         purchasedAt: new Date()
                     });
-                    console.log(`Added ${credits} credits to user ${user.email}`);
+                } else {
+                    console.log('Unknown product:', itemNumber);
+                    return res.status(400).json({ error: 'Unknown product' });
                 }
             }
         }

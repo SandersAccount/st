@@ -78,12 +78,39 @@ export async function initializeVariables() {
         {
             key: 'stickerLabProduct',
             value: {
+                productId: 'wso_svyh7b',
                 name: 'StickerLab',
-                url: 'https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b',
-                productId: 'wso_svyh7b'
+                url: 'https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b'
             },
             category: 'products',
             description: 'Main StickerLab product'
+        },
+        {
+            key: 'unlimitedProduct',
+            value: {
+                productId: 'wso_kwc43t',
+                name: 'StickerLab Unlimited',
+                url: 'https://warriorplus.com/o2/buy/jvrcjg/wj2vl6/kwc43t'
+            },
+            category: 'products',
+            description: 'StickerLab Unlimited product'
+        },
+        {
+            key: 'products',
+            value: [
+                {
+                    name: 'StickerLab',
+                    url: 'https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b',
+                    productId: 'wso_svyh7b'
+                },
+                {
+                    name: 'StickerLab Unlimited',
+                    url: 'https://warriorplus.com/o2/buy/jvrcjg/wj2vl6/kwc43t',
+                    productId: 'wso_kwc43t'
+                }
+            ],
+            category: 'products',
+            description: 'List of products'
         },
         {
             key: 'creditProducts',
