@@ -157,33 +157,35 @@ router.post('/credits/notification', async (req, res) => {
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
         const unlimitedVar = await Variable.findOne({ key: 'unlimitedProduct' });
         
-        // Get product IDs
-        const stickerLabProductId = stickerLabVar?.value?.productId || 'wso_svyh7b';
-        const unlimitedProductId = unlimitedVar?.value?.productId || 'wso_kwc43t';
+        // Get product IDs - check both with and without wso_ prefix
+        const cleanItemNumber = itemNumber.replace('wso_', '');
+        const stickerLabProductId = stickerLabVar?.value?.productId?.replace('wso_', '') || 'svyh7b';
+        const unlimitedProductId = unlimitedVar?.value?.productId?.replace('wso_', '') || 'kwc43t';
 
         console.log('Product validation:', {
             receivedProduct: itemNumber,
+            cleanItemNumber,
             stickerLabId: stickerLabProductId,
             unlimitedId: unlimitedProductId,
-            isUnlimited: itemNumber === unlimitedProductId,
-            isStickerLab: itemNumber === stickerLabProductId
+            isUnlimited: cleanItemNumber === unlimitedProductId,
+            isStickerLab: cleanItemNumber === stickerLabProductId
         });
 
         // Handle new user creation
         if (!user) {
-            if (itemNumber === stickerLabProductId || itemNumber === unlimitedProductId) {
+            if (cleanItemNumber === stickerLabProductId || cleanItemNumber === unlimitedProductId) {
                 user = new User({
                     email: buyerEmail,
                     name: buyerName,
                     registered: false,
                     creditHistory: [{
-                        product: itemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 'StickerLab',
+                        product: cleanItemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 'StickerLab',
                         purchasedAt: new Date()
                     }],
                 });
 
                 // Set unlimited credits if unlimited product
-                if (itemNumber === unlimitedProductId) {
+                if (cleanItemNumber === unlimitedProductId) {
                     user.credits = 123654; // Unlimited credits
                     user.subscription = {
                         plan: 'unlimited',
@@ -199,7 +201,7 @@ router.post('/credits/notification', async (req, res) => {
             }
         } else {
             // Update existing user
-            if (itemNumber === unlimitedProductId) {
+            if (cleanItemNumber === unlimitedProductId) {
                 console.log('Upgrading user to unlimited:', user.email);
                 user.credits = 123654; // Set to unlimited
                 user.subscription = {
@@ -210,7 +212,7 @@ router.post('/credits/notification', async (req, res) => {
                     product: 'StickerLab Unlimited',
                     purchasedAt: new Date()
                 });
-            } else if (itemNumber === stickerLabProductId) {
+            } else if (cleanItemNumber === stickerLabProductId) {
                 user.creditHistory.push({
                     product: 'StickerLab',
                     purchasedAt: new Date()
@@ -222,7 +224,7 @@ router.post('/credits/notification', async (req, res) => {
             } else {
                 // Handle credit package purchase
                 const creditProducts = await Variable.findOne({ key: 'creditProducts' });
-                const creditProduct = creditProducts?.value?.find(p => p.productId === itemNumber);
+                const creditProduct = creditProducts?.value?.find(p => p.productId === cleanItemNumber);
                 
                 if (creditProduct) {
                     if (user.credits !== 123654) { // Only add if not unlimited
@@ -246,8 +248,8 @@ router.post('/credits/notification', async (req, res) => {
             console.log('Transaction completed successfully:', {
                 email: user.email,
                 credits: user.credits,
-                product: itemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 
-                        itemNumber === stickerLabProductId ? 'StickerLab' : 'Credits'
+                product: cleanItemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 
+                        cleanItemNumber === stickerLabProductId ? 'StickerLab' : 'Credits'
             });
 
             return res.status(200).json({
