@@ -2,6 +2,8 @@ import express from 'express';
 import User from '../models/User.js';
 import auth from '../middleware/auth.js';
 import adminAuth from '../middleware/adminAuth.js';
+import Variable from '../models/Variable.js';
+import IPNNotification from '../models/IPNNotification.js';
 
 const router = express.Router();
  
@@ -429,6 +431,19 @@ router.post('/update-product', async (req, res) => {
 
     } catch (error) {
         console.error('Error updating user product:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Add route to get IPN notifications
+router.get('/notifications', async (req, res) => {
+    try {
+        const notifications = await IPNNotification.find()
+            .sort({ timestamp: -1 }) // Most recent first
+            .limit(50); // Only get last 50 notifications
+        res.json(notifications);
+    } catch (error) {
+        console.error('Error getting notifications:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

@@ -235,11 +235,62 @@
         .btn-update:hover {
             background: #ff1493dd;
         }
+
+        /* Add notification styles */
+        .notifications-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .notifications-list {
+            margin-top: 1rem;
+        }
+        .notification-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #333;
+            font-size: 0.9rem;
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .status-pending {
+            background: #ffd700;
+            color: #000;
+        }
+        .status-processed {
+            background: #00ff00;
+            color: #000;
+        }
+        .status-failed {
+            background: #ff0000;
+            color: #fff;
+        }
+        .notification-time {
+            color: #888;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <h1>Admin Dashboard</h1>
+
+        <!-- Notifications Section -->
+        <div class="notifications-section">
+            <h2>Recent IPN Notifications</h2>
+            <div id="notificationsList" class="notifications-list">
+                <!-- Notifications will be loaded here -->
+            </div>
+        </div>
 
         <!-- Updates Section -->
         <div class="update-section">
@@ -655,8 +706,36 @@
             }
         }
 
+        // Add loadNotifications function
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/admin/notifications');
+                const notifications = await response.json();
+                
+                const notificationsList = document.getElementById('notificationsList');
+                notificationsList.innerHTML = notifications.map(notification => `
+                    <div class="notification-item">
+                        <div>
+                            <strong>${notification.email}</strong> - 
+                            <span>${notification.productId}</span>
+                        </div>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span class="notification-time">${new Date(notification.timestamp).toLocaleString()}</span>
+                            <span class="notification-status status-${notification.status}">${notification.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+
         // Initialize page
         loadUsers();
+        loadNotifications();
+        
+        // Refresh notifications every minute
+        setInterval(loadNotifications, 60000);
     </script>
 </body>
 </html>

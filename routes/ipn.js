@@ -1,6 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import Variable from '../models/Variable.js';
+import IPNNotification from '../models/IPNNotification.js';
 
 const router = express.Router();
 
@@ -140,6 +141,14 @@ router.post('/credits/notification', async (req, res) => {
             WP_PAYMENT_STATUS: transactionStatus
         } = req.body;
 
+        // Store IPN notification
+        const notification = new IPNNotification({
+            email: buyerEmail,
+            productId: itemNumber,
+            status: 'pending'
+        });
+        await notification.save();
+
         console.log('Extracted WarriorPlus fields:', {
             itemNumber,
             buyerEmail,
@@ -263,8 +272,11 @@ router.post('/credits/notification', async (req, res) => {
             }
         }
 
-        // Check for sale event and completed status
+        // Update notification status based on result
         if (event === 'sale' && transactionStatus.toUpperCase() === 'COMPLETED') {
+            notification.status = 'processed';
+            await notification.save();
+            
             console.log('Transaction completed successfully:', {
                 email: user.email,
                 credits: user.credits,
@@ -279,10 +291,16 @@ router.post('/credits/notification', async (req, res) => {
             });
         }
 
+        notification.status = 'failed';
+        await notification.save();
         return res.status(200).json({ message: 'IPN received but not processed (status not completed)' });
 
     } catch (error) {
         console.error('IPN Error:', error);
+        if (notification) {
+            notification.status = 'failed';
+            await notification.save();
+        }
         res.status(500).json({ error: 'Internal server error' });
     }
 });
