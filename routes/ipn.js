@@ -128,16 +128,19 @@ router.post('/notification', async (req, res) => {
 
 router.post('/credits/notification', async (req, res) => {
     try {
+        console.log('Raw WarriorPlus data:', req.body);
+
+        // Extract data from WarriorPlus fields
         const {
-            securityKey,
-            itemNumber,
-            buyerEmail,
-            buyerName,
-            event,
-            transactionStatus
+            WP_SECURITYKEY: securityKey,
+            WP_ITEM_NUMBER: itemNumber,
+            WP_BUYER_EMAIL: buyerEmail,
+            WP_BUYER_NAME: buyerName,
+            WP_ACTION: event,
+            WP_PAYMENT_STATUS: transactionStatus
         } = req.body;
 
-        console.log('IPN Request received:', {
+        console.log('Extracted WarriorPlus fields:', {
             itemNumber,
             buyerEmail,
             event,
