@@ -198,12 +198,65 @@
         button[type="submit"]:hover {
             background: #d417cc;
         }
+
+        .update-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .update-form {
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            background: #222;
+            color: white;
+            min-width: 200px;
+        }
+        .btn-update {
+            background: #ff1493;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            height: 35px;
+        }
+        .btn-update:hover {
+            background: #ff1493dd;
+        }
     </style>
 </head>
 <body>
     <div class="admin-container">
         <h1>Admin Dashboard</h1>
-        
+
+        <!-- Updates Section -->
+        <div class="update-section">
+            <h2>Updates</h2>
+            <div class="update-form">
+                <div class="form-group">
+                    <label for="updateEmail">User email</label>
+                    <input type="email" id="updateEmail" class="form-input" placeholder="email@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="updateProduct">Product ID</label>
+                    <input type="text" id="updateProduct" class="form-input" placeholder="wso_kwc43t">
+                </div>
+                <button onclick="handleProductUpdate()" class="btn-update">Update User</button>
+            </div>
+        </div>
+
         <!-- Create Test User Section -->
         <div class="section">
             <h2>Create Test User</h2>
@@ -563,6 +616,42 @@
 
             } catch (error) {
                 alert(error.message);
+            }
+        }
+
+        async function handleProductUpdate() {
+            const email = document.getElementById('updateEmail').value;
+            const productId = document.getElementById('updateProduct').value;
+
+            if (!email || !productId) {
+                alert('Please fill in both email and product ID');
+                return;
+            }
+
+            try {
+                const response = await fetch('/admin/update-product', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, productId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('User updated successfully!');
+                    // Clear the form
+                    document.getElementById('updateEmail').value = '';
+                    document.getElementById('updateProduct').value = '';
+                    // Reload the users list
+                    loadUsers();
+                } else {
+                    alert(data.error || 'Failed to update user');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update user');
             }
         }
 

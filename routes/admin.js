@@ -382,4 +382,55 @@ router.get('/check-variables', async (req, res) => {
     }
 });
 
+// Add product update route
+router.post('/update-product', async (req, res) => {
+    try {
+        const { email, productId } = req.body;
+        
+        // Find user
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get product information
+        const unlimitedVar = await Variable.findOne({ key: 'unlimitedProduct' });
+        const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
+        
+        const cleanProductId = productId.replace('wso_', '');
+        const unlimitedProductId = unlimitedVar?.value?.productId?.replace('wso_', '') || 'kwc43t';
+        const stickerLabProductId = stickerLabVar?.value?.productId?.replace('wso_', '') || 'svyh7b';
+
+        // Update user based on product
+        if (cleanProductId === unlimitedProductId) {
+            user.credits = 123654; // Unlimited credits
+            user.subscription = {
+                plan: 'unlimited',
+                status: 'active'
+            };
+            user.creditHistory.push({
+                product: 'StickerLab Unlimited (Manual Update)',
+                purchasedAt: new Date()
+            });
+        } else if (cleanProductId === stickerLabProductId) {
+            if (user.credits !== 123654) { // Only add if not unlimited
+                user.credits = (user.credits || 0) + 100;
+            }
+            user.creditHistory.push({
+                product: 'StickerLab (Manual Update)',
+                purchasedAt: new Date()
+            });
+        } else {
+            return res.status(400).json({ error: 'Invalid product ID' });
+        }
+
+        await user.save();
+        res.json({ message: 'User updated successfully', user });
+
+    } catch (error) {
+        console.error('Error updating user product:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;
