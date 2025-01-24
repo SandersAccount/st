@@ -371,4 +371,15 @@ router.post('/users/:userId/block', [auth, adminAuth], async (req, res) => {
     }
 });
 
+// Add this route to check variables
+router.get('/check-variables', async (req, res) => {
+    try {
+        const variables = await Variable.find({});
+        res.json(variables);
+    } catch (error) {
+        console.error('Error checking variables:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router;

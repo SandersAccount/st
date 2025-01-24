@@ -152,10 +152,18 @@ router.post('/credits/notification', async (req, res) => {
 
         // Find user by email
         let user = await User.findOne({ email: buyerEmail });
+        console.log('User found:', user ? 'Yes' : 'No');
         
         // Get product information
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
         const unlimitedVar = await Variable.findOne({ key: 'unlimitedProduct' });
+        
+        console.log('Product variables found:', {
+            stickerLab: stickerLabVar ? 'Yes' : 'No',
+            unlimited: unlimitedVar ? 'Yes' : 'No'
+        });
+
+        console.log('Unlimited product details:', unlimitedVar);
         
         // Get product IDs - check both with and without wso_ prefix
         const cleanItemNumber = itemNumber.replace('wso_', '');
@@ -168,38 +176,41 @@ router.post('/credits/notification', async (req, res) => {
             stickerLabId: stickerLabProductId,
             unlimitedId: unlimitedProductId,
             isUnlimited: cleanItemNumber === unlimitedProductId,
-            isStickerLab: cleanItemNumber === stickerLabProductId
+            isStickerLab: cleanItemNumber === stickerLabProductId,
+            unlimitedVarValue: unlimitedVar?.value
         });
 
         // Handle new user creation
         if (!user) {
-            if (cleanItemNumber === stickerLabProductId || cleanItemNumber === unlimitedProductId) {
+            console.log('Creating new user...');
+            if (cleanItemNumber === unlimitedProductId || cleanItemNumber === stickerLabProductId) {
                 user = new User({
                     email: buyerEmail,
                     name: buyerName,
                     registered: false,
+                    credits: cleanItemNumber === unlimitedProductId ? 123654 : 100,
+                    subscription: cleanItemNumber === unlimitedProductId ? {
+                        plan: 'unlimited',
+                        status: 'active'
+                    } : null,
                     creditHistory: [{
                         product: cleanItemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 'StickerLab',
                         purchasedAt: new Date()
-                    }],
+                    }]
                 });
 
-                // Set unlimited credits if unlimited product
-                if (cleanItemNumber === unlimitedProductId) {
-                    user.credits = 123654; // Unlimited credits
-                    user.subscription = {
-                        plan: 'unlimited',
-                        status: 'active'
-                    };
-                }
-
                 await user.save();
-                console.log('New user created from IPN:', user.email);
+                console.log('New user created:', {
+                    email: user.email,
+                    credits: user.credits,
+                    subscription: user.subscription
+                });
             } else {
-                console.log('Unknown product:', itemNumber);
+                console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or', stickerLabProductId);
                 return res.status(400).json({ error: 'Unknown product' });
             }
         } else {
+            console.log('Updating existing user...');
             // Update existing user
             if (cleanItemNumber === unlimitedProductId) {
                 console.log('Upgrading user to unlimited:', user.email);
@@ -212,6 +223,12 @@ router.post('/credits/notification', async (req, res) => {
                     product: 'StickerLab Unlimited',
                     purchasedAt: new Date()
                 });
+                await user.save();
+                console.log('User upgraded successfully:', {
+                    email: user.email,
+                    credits: user.credits,
+                    subscription: user.subscription
+                });
             } else if (cleanItemNumber === stickerLabProductId) {
                 user.creditHistory.push({
                     product: 'StickerLab',
@@ -221,10 +238,11 @@ router.post('/credits/notification', async (req, res) => {
                 if (user.credits !== 123654) {
                     user.credits = (user.credits || 0) + 100;
                 }
+                await user.save();
             } else {
                 // Handle credit package purchase
                 const creditProducts = await Variable.findOne({ key: 'creditProducts' });
-                const creditProduct = creditProducts?.value?.find(p => p.productId === cleanItemNumber);
+                const creditProduct = creditProducts?.value?.find(p => p.productId?.replace('wso_', '') === cleanItemNumber);
                 
                 if (creditProduct) {
                     if (user.credits !== 123654) { // Only add if not unlimited
@@ -234,8 +252,9 @@ router.post('/credits/notification', async (req, res) => {
                         product: `Credit Purchase (${creditProduct.credits})`,
                         purchasedAt: new Date()
                     });
+                    await user.save();
                 } else {
-                    console.log('Unknown product:', itemNumber);
+                    console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or', stickerLabProductId);
                     return res.status(400).json({ error: 'Unknown product' });
                 }
             }
@@ -243,11 +262,10 @@ router.post('/credits/notification', async (req, res) => {
 
         // Check for sale event and completed status
         if (event === 'sale' && transactionStatus.toUpperCase() === 'COMPLETED') {
-            await user.save();
-
             console.log('Transaction completed successfully:', {
                 email: user.email,
                 credits: user.credits,
+                subscription: user.subscription,
                 product: cleanItemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 
                         cleanItemNumber === stickerLabProductId ? 'StickerLab' : 'Credits'
             });
