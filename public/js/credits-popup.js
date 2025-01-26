@@ -152,73 +152,86 @@ class CreditsPopup {
 
     setupEventListeners() {
         const popup = document.querySelector('.credits-popup');
-        const closeButton = popup.querySelector('.close-button');
-        const slider = popup.querySelector('.credits-slider');
-        const buyButton = popup.querySelector('.buy-credits-button');
+        const closeButton = popup?.querySelector('.close-button');
+        const slider = popup?.querySelector('.credits-slider');
+        const buyButton = popup?.querySelector('.buy-credits-button');
 
-        closeButton.addEventListener('click', () => this.hide());
-        popup.addEventListener('click', (e) => {
-            if (e.target === popup) this.hide();
-        });
+        if (closeButton) {
+            closeButton.addEventListener('click', () => this.hide());
+        }
 
-        slider.addEventListener('input', (e) => {
-            const credits = parseInt(e.target.value);
-            const selectedPackage = creditPackages.find(p => p.credits === credits);
-            
-            popup.querySelector('.selected-credits').textContent = credits;
-            popup.querySelector('.original-price').textContent = `$${selectedPackage.price.toFixed(2)}`;
-            popup.querySelector('.discount').textContent = `${selectedPackage.discount}% OFF`;
-            
-            const finalPrice = selectedPackage.price * (1 - selectedPackage.discount / 100);
-            popup.querySelector('.final-price').textContent = `Final Price: $${finalPrice.toFixed(2)}`;
-        });
+        if (popup) {
+            popup.addEventListener('click', (e) => {
+                if (e.target === popup) this.hide();
+            });
+        }
 
-        buyButton.addEventListener('click', async () => {
-            const credits = parseInt(slider.value);
-            const selectedPackage = creditPackages.find(p => p.credits === credits);
-            
-            if (!selectedPackage) {
-                alert('Please select a valid credit package');
-                return;
-            }
+        if (slider) {
+            slider.addEventListener('input', (e) => {
+                const credits = parseInt(e.target.value);
+                const selectedPackage = creditPackages.find(p => p.credits === credits);
+                
+                popup.querySelector('.selected-credits').textContent = credits;
+                popup.querySelector('.original-price').textContent = `$${selectedPackage.price.toFixed(2)}`;
+                popup.querySelector('.discount').textContent = `${selectedPackage.discount}% OFF`;
+                
+                const finalPrice = selectedPackage.price * (1 - selectedPackage.discount / 100);
+                popup.querySelector('.final-price').textContent = `Final Price: $${finalPrice.toFixed(2)}`;
+            });
+        }
 
-            try {
-                const response = await fetch('/api/credits/purchase', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ credits })
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to process credit purchase');
+        if (buyButton) {
+            buyButton.addEventListener('click', async () => {
+                const credits = parseInt(slider.value);
+                const selectedPackage = creditPackages.find(p => p.credits === credits);
+                
+                if (!selectedPackage) {
+                    alert('Please select a valid credit package');
+                    return;
                 }
 
-                const data = await response.json();
-                if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl;
-                } else {
-                    this.hide();
-                    alert('Thank you for your purchase! Your credits will be added soon.');
+                try {
+                    const response = await fetch('/api/credits/purchase', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ credits })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to process credit purchase');
+                    }
+
+                    const data = await response.json();
+                    if (data.redirectUrl) {
+                        window.location.href = data.redirectUrl;
+                    } else {
+                        this.hide();
+                        alert('Thank you for your purchase! Your credits will be added soon.');
+                    }
+                } catch (error) {
+                    console.error('Error purchasing credits:', error);
+                    alert(error.message || 'Failed to process credit purchase. Please try again.');
                 }
-            } catch (error) {
-                console.error('Error purchasing credits:', error);
-                alert(error.message || 'Failed to process credit purchase. Please try again.');
-            }
-        });
+            });
+        }
     }
 
     show() {
         const popup = document.querySelector('.credits-popup');
-        popup.style.display = 'flex';
+        if (popup) {
+            popup.style.display = 'flex';
+        }
     }
 
     hide() {
         const popup = document.querySelector('.credits-popup');
-        popup.style.display = 'none';
+        if (popup) {
+            popup.style.display = 'none';
+        }
     }
 }
 

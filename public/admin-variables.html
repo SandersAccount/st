@@ -147,8 +147,27 @@
         // Load variables by category
         async function loadVariables() {
             try {
-                const response = await fetch('/api/variables');
+                const response = await fetch('/api/variables', {
+                    credentials: 'include' // Add this to send cookies
+                });
+
+                if (response.status === 403) {
+                    console.error('Access denied. Please make sure you are logged in as an admin.');
+                    const container = document.getElementById('variablesContent');
+                    container.innerHTML = '<div class="alert alert-danger">Access denied. Please make sure you are logged in as an admin.</div>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const variables = await response.json();
+                
+                if (!Array.isArray(variables)) {
+                    console.error('Expected array of variables but got:', variables);
+                    return;
+                }
 
                 const categories = {};
                 variables.forEach(variable => {
@@ -159,28 +178,28 @@
                 });
 
                 const container = document.getElementById('variablesContent');
-                container.innerHTML = '';
+                container.innerHTML = ''; // Clear existing content
 
-                Object.entries(categories).forEach(([category, vars]) => {
-                    const section = document.createElement('div');
-                    section.className = 'category-section';
-                    
-                    const header = document.createElement('div');
-                    header.className = 'category-header';
-                    header.innerHTML = `<h2>${category}</h2>`;
-                    section.appendChild(header);
+                // Create sections for each category
+                Object.keys(categories).sort().forEach(category => {
+                    const categorySection = document.createElement('div');
+                    categorySection.className = 'category-section';
+                    categorySection.innerHTML = `
+                        <h2>${category}</h2>
+                        <div class="variables-grid"></div>
+                    `;
 
-                    const list = document.createElement('div');
-                    list.className = 'variables-list';
-                    vars.forEach(variable => {
-                        list.appendChild(createVariableItem(variable));
+                    const grid = categorySection.querySelector('.variables-grid');
+                    categories[category].forEach(variable => {
+                        grid.appendChild(createVariableItem(variable));
                     });
-                    section.appendChild(list);
 
-                    container.appendChild(section);
+                    container.appendChild(categorySection);
                 });
             } catch (error) {
                 console.error('Error loading variables:', error);
+                const container = document.getElementById('variablesContent');
+                container.innerHTML = '<div class="alert alert-danger">Error loading variables. Please try refreshing the page.</div>';
             }
         }
 

@@ -66,6 +66,10 @@ const userSchema = new mongoose.Schema({
             return v === "unlimited" ? 123654 : v; 
         }
     },
+    hideCredits: {
+        type: Boolean,
+        default: false
+    },
     subscription: {
         plan: {
             type: String,

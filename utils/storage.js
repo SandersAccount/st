@@ -189,7 +189,7 @@ export async function getImagePublicUrl(fileName) {
  * Uploads a buffer directly to storage
  * @param {Buffer} buffer - The buffer containing the file data
  * @param {string} prefix - Optional prefix for the filename (e.g., 'face-upload/')
- * @returns {Promise<string>} The public URL of the uploaded file
+ * @returns {Promise<{publicUrl: string, fileName: string}>} The public URL of the uploaded file
  */
 export async function uploadBuffer(buffer, prefix = '') {
     try {
@@ -239,7 +239,10 @@ export async function uploadBuffer(buffer, prefix = '') {
         const publicUrl = `${auth.data.downloadUrl}/file/${BUCKET_NAME}/${filename}`;
         console.log('Public URL:', publicUrl);
         
-        return publicUrl;
+        return {
+            publicUrl,
+            fileName: filename
+        };
     } catch (error) {
         console.error('Error uploading buffer:', error);
         throw error;

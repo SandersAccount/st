@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sticker Editor</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/fonts.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="/styles.css">
     <style>
@@ -25,6 +25,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
         }
 
         #editor-canvas {
@@ -70,13 +71,14 @@
         }
 
         .button-group {
-            display: flex;
+            display: flex; 
+            flex-direction: column;
             gap: 10px;
             margin-top: 20px;
         }
 
         .control-button {
-            background: #2a2a2a;
+            background: #4CAF50;
             border: none;
             color: white;
             padding: 8px 16px;
@@ -119,7 +121,7 @@
             background: #bd2130;
         }
 
-        .font-select, .font-size-input {
+        .font-select {
             width: 100%;
             padding: 8px;
             background: #2a2a2a;
@@ -129,39 +131,37 @@
             margin-bottom: 10px;
         }
 
-        .font-controls {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+        .font-select option {
+            padding: 8px;
+            font-size: 16px;
+            background: #2a2a2a;
+            color: white;
         }
 
-        .stroke-controls {
+        .font-preview {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
         }
 
-        .stroke-controls label {
-            color: #fff;
+        .font-preview:hover {
+            background-color: #3a3a3a;
+        }
+
+        .font-name {
             font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .warp-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .warp-controls label {
-            color: #fff;
-            font-size: 14px;
+            color: #888;
         }
 
         .slider-container {
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 10px;
         }
 
         .slider {
@@ -197,6 +197,215 @@
             font-size: 14px;
         }
 
+        .font-controls {
+            display: flex;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .font-size-input {
+            width: 60px;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 4px;
+        }
+
+        .font-menu-wrapper {
+            position: relative;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .font-menu-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .font-menu-header .selected-font {
+            font-size: 20px;
+            line-height: 1.2;
+        }
+
+        .font-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            margin-top: 4px;
+            display: none;
+            z-index: 1000;
+        }
+
+        .font-menu.show {
+            display: block;
+        }
+
+        .font-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid #3a3a3a;
+        }
+
+        .font-option:last-child {
+            border-bottom: none;
+        }
+
+        .font-option:hover {
+            background: #3a3a3a;
+        }
+
+        .font-option .preview-text {
+            font-size: 20px;
+            line-height: 1.2;
+            margin-bottom: 4px;
+        }
+
+        .font-option .font-name {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .warp-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .warp-controls label {
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .stroke-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stroke-controls label {
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .canvas-menu {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(88, 88, 88, 0.95);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .canvas-menu button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            color: #000000;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            width: 100%;
+            text-align: left;
+        }
+
+        .canvas-menu button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .canvas-menu button img {
+            width: 20px;
+            height: 20px;
+            opacity: 0.8;
+        }
+
+        .canvas-menu button:hover img {
+            opacity: 1;
+        }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+
+        .toast.error {
+            background: rgba(220, 53, 69, 0.9);
+        }
+
+        .toast.success {
+            background: rgba(40, 167, 69, 0.9);
+        }
+
+        .toast.info {
+            background: rgba(0, 123, 255, 0.9);
+        }
+
+        /* Scrollbar styles for the font menu */
+        .font-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .font-menu::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .font-menu::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        .font-menu::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        .slider-controls {
+            margin-top: 20px;
+        }
+
+        .slider-group {
+            margin-bottom: 20px;
+        }
+
+        .color-controls {
+            margin-top: 20px;
+        }
+
+        .color-group {
+            margin-bottom: 20px;
+        }
+
         #imageInput {
             display: none;
         }
@@ -221,28 +430,37 @@
     <div class="editor-container">
         <div class="canvas-container">
             <canvas id="editor-canvas" width="500" height="500"></canvas>
+            <div class="canvas-menu">
+                <button id="addToCollectionBtn" title="Add to Collection">
+                    <img src="/images/ph--folder-simple-plus-light.svg" alt="Add to Collection" />
+                    Add to Collection
+                </button>
+                <button id="downloadBtn" title="Download">
+                    <img src="/images/ph--download-simple-light.svg" alt="Download" />
+                    Download
+                </button>
+                <button id="deleteImageBtn" title="Delete Image">
+                    <img src="/images/ph--trash-light.svg" alt="Delete" />
+                    Delete Image
+                </button>
+            </div>
         </div>
         
         <div class="tools-panel">
-            <div class="tool-section">
-                <h3>Upload Image</h3>
-                <label class="upload-area" for="imageInput">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Click or drag image here</p>
-                </label>
-                <input type="file" id="imageInput" accept="image/*">
-            </div>
+           
 
             <div class="tool-section">
                 <h3>Text</h3>
                 <input type="text" id="textInput" class="font-select" placeholder="Enter text...">
-                <select id="fontSelect" class="font-select">
-                    <option value="Arial">Arial</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Inter">Inter</option>
-                    <option value="Comic Sans MS">Comic Sans MS</option>
-                </select>
+                <div class="font-menu-wrapper">
+                    <div class="font-menu-header" id="fontMenuHeader">
+                        <span class="selected-font"></span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="font-menu" id="fontMenu">
+                        <!-- Font options will be generated by JavaScript -->
+                    </div>
+                </div>
                 <div class="font-controls">
                     <button class="control-button small" id="boldBtn">
                         <i class="fas fa-bold"></i>
@@ -250,7 +468,11 @@
                     <button class="control-button small" id="italicBtn">
                         <i class="fas fa-italic"></i>
                     </button>
-                    <input type="number" id="fontSizeInput" class="font-size-input" value="40" min="1" max="200">
+                </div>
+                <div class="slider-container">
+                    <label for="fontSizeInput">Font Size</label>
+                    <input type="range" id="fontSizeInput" class="slider" min="10" max="350" value="48" step="1">
+                    <span class="slider-value">48</span>
                 </div>
             </div>
 
@@ -285,8 +507,11 @@
             <div class="tool-section">
                 <h3>Text Stroke</h3>
                 <div class="stroke-controls">
-                    <label>Stroke Width</label>
-                    <input type="number" id="strokeWidthInput" class="font-size-input" value="0" min="0" max="20">
+                    <div class="slider-container">
+                        <label for="strokeWidthInput">Stroke Width</label>
+                        <input type="range" id="strokeWidthInput" class="slider" min="0" max="50" value="0" step="1">
+                        <span class="slider-value">0</span>
+                    </div>
                     <label>Stroke Color</label>
                     <div class="color-picker" id="strokeColorPicker">
                         <div class="color-option active" style="background: #000000" data-color="#000000"></div>
@@ -306,17 +531,19 @@
                 <button class="control-button danger" id="deleteTextBtn">
                     <i class="fas fa-trash"></i> Delete Text
                 </button>
-                <button class="control-button primary" id="exportBtn">
-                    <i class="fas fa-download"></i> Export
-                </button>
+             
             </div>
         </div>
     </div>
 
     <script type="module">
         import { createTopbar } from '/js/components/Topbar.js';
+        import { showToast } from '/js/components/Toast.js';
+        import '/js/components/CollectionModal.js';
+        window.showToast = showToast;
         createTopbar();
     </script>
-    <script src="/js/sticker-editor.js"></script>
+    <script type="module" src="/js/sticker-editor.js"></script>
+    <collection-modal></collection-modal>
 </body>
 </html>

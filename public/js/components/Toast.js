@@ -53,15 +53,11 @@ export class Toast extends HTMLElement {
     }
 }
 
+// Helper function to create and show a toast
 export function showToast(message, type = 'success') {
-    // Remove any existing toasts
-    const existingToasts = document.querySelectorAll('toast-notification');
-    existingToasts.forEach(toast => toast.remove());
-
-    // Create and show new toast
     const toast = document.createElement('toast-notification');
     document.body.appendChild(toast);
-    toast.show(message, type, 4000);
+    toast.show(message, type);
 }
 
 customElements.define('toast-notification', Toast);

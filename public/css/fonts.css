@@ -1,0 +1,188 @@
+/* Font System */
+:root {
+    /* Available Fonts - Used to generate font menu */
+    --available-fonts: 'Angeline Regular', 'Hartone Regular', 'Airstrike', 'Lemon Milk', 'Super Bubble', 'Grobold', 'Godzilla', 'Insaniburger', 'Forky', 'Commando', 'Borgsquad', 'Snickers', 'Roboto Black', 'Super Cartoon', 'Heavitas', 'Starborn';
+
+    /* Fallback Fonts */
+    --fallback-display: 'Arial Black';
+    --fallback-comic: 'Comic Sans MS';
+    --fallback-impact: Impact;
+    --fallback-arial: Arial;
+    --fallback-script: 'Brush Script MT';
+
+    /* Font Family Names */
+    --font-angelineregular: 'Angeline Regular';
+    --font-hartoneregular: 'Hartone Regular';
+    --font-airstrike: 'Airstrike';
+    --font-lemonmilk: 'Lemon Milk';
+    --font-superbubble: 'Super Bubble';
+    --font-grobold: 'Grobold';
+    --font-godzilla: 'Godzilla';
+    --font-insaniburger: 'Insaniburger';
+    --font-forky: 'Forky';
+    --font-commando: 'Commando';
+    --font-borgsquad: 'Borgsquad';
+    --font-snickers: 'Snickers';
+    --font-robotoblack: 'Roboto Black';
+    --font-supercartoon: 'Super Cartoon';
+    --font-heavitas: 'Heavitas';
+    --font-starborn: 'Starborn';
+}
+
+/* Font Face Definitions */
+@font-face {
+    font-family: var(--font-angelineregular);
+    src: url('/fonts/angeline.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-hartoneregular);
+    src: url('/fonts/Hartone Softed.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-airstrike);
+    src: url('/fonts/airstrike.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-lemonmilk);
+    src: url('/fonts/lemonmilk.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-superbubble);
+    src: url('/fonts/Super Bubble.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-grobold);
+    src: url('/fonts/GROBOLD.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-godzilla);
+    src: url('/fonts/Godzilla.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-insaniburger);
+    src: url('/fonts/Insanibc.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-forky);
+    src: url('/fonts/1. Forky.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-commando);
+    src: url('/fonts/commando.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-borgsquad);
+    src: url('/fonts/borgsquad.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-snickers);
+    src: url('/fonts/SNICN___.TTF') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-robotoblack);
+    src: url('/fonts/Roboto-Black.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-supercartoon);
+    src: url('/fonts/Super Cartoon.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-heavitas);
+    src: url('/fonts/Heavitas.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: var(--font-starborn);
+    src: url('/fonts/Starborn.ttf') format('truetype');
+    font-display: swap;
+}
+
+/* Font Classes */
+.font-angelineregular { font-family: var(--font-angelineregular), var(--fallback-script); }
+.font-hartoneregular { font-family: var(--font-hartoneregular), var(--fallback-display); }
+.font-airstrike { font-family: var(--font-airstrike), var(--fallback-impact); }
+.font-lemonmilk { font-family: var(--font-lemonmilk), var(--fallback-display); }
+.font-superbubble { font-family: var(--font-superbubble), var(--fallback-comic); }
+.font-grobold { font-family: var(--font-grobold), var(--fallback-display); }
+.font-godzilla { font-family: var(--font-godzilla), var(--fallback-impact); }
+.font-insaniburger { font-family: var(--font-insaniburger), var(--fallback-impact); }
+.font-forky { font-family: var(--font-forky), var(--fallback-comic); }
+.font-commando { font-family: var(--font-commando), var(--fallback-impact); }
+.font-borgsquad { font-family: var(--font-borgsquad), var(--fallback-display); }
+.font-snickers { font-family: var(--font-snickers), var(--fallback-arial); }
+.font-robotoblack { font-family: var(--font-robotoblack), var(--fallback-arial); }
+.font-supercartoon { font-family: var(--font-supercartoon), var(--fallback-arial); }
+.font-heavitas { font-family: var(--font-heavitas), var(--fallback-arial); }
+.font-starborn { font-family: var(--font-starborn), var(--fallback-arial); }
+
+/* Font Menu Styles */
+.font-menu-header[data-selected-font="Angeline Regular"] .selected-font { font-family: var(--font-angelineregular), var(--fallback-script); }
+.font-menu-header[data-selected-font="Hartone Regular"] .selected-font { font-family: var(--font-hartoneregular), var(--fallback-display); }
+.font-menu-header[data-selected-font="Airstrike"] .selected-font { font-family: var(--font-airstrike), var(--fallback-impact); }
+.font-menu-header[data-selected-font="Lemon Milk"] .selected-font { font-family: var(--font-lemonmilk), var(--fallback-display); }
+.font-menu-header[data-selected-font="Super Bubble"] .selected-font { font-family: var(--font-superbubble), var(--fallback-comic); }
+.font-menu-header[data-selected-font="Grobold"] .selected-font { font-family: var(--font-grobold), var(--fallback-display); }
+.font-menu-header[data-selected-font="Godzilla"] .selected-font { font-family: var(--font-godzilla), var(--fallback-impact); }
+.font-menu-header[data-selected-font="Insaniburger"] .selected-font { font-family: var(--font-insaniburger), var(--fallback-impact); }
+.font-menu-header[data-selected-font="Forky"] .selected-font { font-family: var(--font-forky), var(--fallback-comic); }
+.font-menu-header[data-selected-font="Commando"] .selected-font { font-family: var(--font-commando), var(--fallback-impact); }
+.font-menu-header[data-selected-font="Borgsquad"] .selected-font { font-family: var(--font-borgsquad), var(--fallback-display); }
+.font-menu-header[data-selected-font="Snickers"] .selected-font { font-family: var(--font-snickers), var(--fallback-arial); }
+.font-menu-header[data-selected-font="Roboto Black"] .selected-font { font-family: var(--font-robotoblack), var(--fallback-arial); }
+.font-menu-header[data-selected-font="Super Cartoon"] .selected-font { font-family: var(--font-supercartoon), var(--fallback-arial); }
+.font-menu-header[data-selected-font="Heavitas"] .selected-font { font-family: var(--font-heavitas), var(--fallback-arial); }
+.font-menu-header[data-selected-font="Starborn"] .selected-font { font-family: var(--font-starborn), var(--fallback-arial); }
+
+/* Font Preview Styles */
+.font-option[data-font="Angeline Regular"] .preview-text { font-family: var(--font-angelineregular), var(--fallback-script); }
+.font-option[data-font="Hartone Regular"] .preview-text { font-family: var(--font-hartoneregular), var(--fallback-display); }
+.font-option[data-font="Airstrike"] .preview-text { font-family: var(--font-airstrike), var(--fallback-impact); }
+.font-option[data-font="Lemon Milk"] .preview-text { font-family: var(--font-lemonmilk), var(--fallback-display); }
+.font-option[data-font="Super Bubble"] .preview-text { font-family: var(--font-superbubble), var(--fallback-comic); }
+.font-option[data-font="Grobold"] .preview-text { font-family: var(--font-grobold), var(--fallback-display); }
+.font-option[data-font="Godzilla"] .preview-text { font-family: var(--font-godzilla), var(--fallback-impact); }
+.font-option[data-font="Insaniburger"] .preview-text { font-family: var(--font-insaniburger), var(--fallback-impact); }
+.font-option[data-font="Forky"] .preview-text { font-family: var(--font-forky), var(--fallback-comic); }
+.font-option[data-font="Commando"] .preview-text { font-family: var(--font-commando), var(--fallback-impact); }
+.font-option[data-font="Borgsquad"] .preview-text { font-family: var(--font-borgsquad), var(--fallback-display); }
+.font-option[data-font="Snickers"] .preview-text { font-family: var(--font-snickers), var(--fallback-arial); }
+.font-option[data-font="Roboto Black"] .preview-text { font-family: var(--font-robotoblack), var(--fallback-arial); }
+.font-option[data-font="Super Cartoon"] .preview-text { font-family: var(--font-supercartoon), var(--fallback-arial); }
+.font-option[data-font="Heavitas"] .preview-text { font-family: var(--font-heavitas), var(--fallback-arial); }
+.font-option[data-font="Starborn"] .preview-text { font-family: var(--font-starborn), var(--fallback-arial); }
+
+.preview-text {
+    font-size: 24px;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    color: #fff;
+}

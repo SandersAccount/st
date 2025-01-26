@@ -95,27 +95,33 @@ export async function createTopbar() {
                 const user = userData.user;
 
                 if (user) {
-                    // Credits indicator
-                    const creditsIndicator = document.createElement('div');
-                    creditsIndicator.className = 'credits-indicator';
+                    // Credits indicator (only show if credits !== 456321)
+                    if (user.credits !== 456321) {
+                        const creditsIndicator = document.createElement('div');
+                        creditsIndicator.className = 'credits-indicator';
 
-                    const creditsIcon = document.createElement('i');
-                    creditsIcon.className = 'fas fa-coins';
+                        const creditsIcon = document.createElement('i');
+                        creditsIcon.className = 'fas fa-coins';
 
-                    const creditsCount = document.createElement('span');
-                    creditsCount.textContent = user.credits || '0';
-                    creditsCount.id = 'topbarCredits';
+                        const creditsCount = document.createElement('span');
+                        creditsCount.textContent = user.credits === 123654 ? 'Unlimited' : (user.credits || '0');
+                        creditsCount.id = 'topbarCredits';
 
-                    creditsIndicator.appendChild(creditsIcon);
-                    creditsIndicator.appendChild(creditsCount);
+                        creditsIndicator.appendChild(creditsIcon);
+                        creditsIndicator.appendChild(creditsCount);
+                        rightSection.appendChild(creditsIndicator);
+                    }
 
-                    // Upgrade button
-                    const upgradeButton = document.createElement('button');
-                    upgradeButton.className = 'btn-upgrade';
-                    upgradeButton.textContent = 'Buy Credits';
-                    upgradeButton.addEventListener('click', () => {
-                        window.location.href = '/profile?tab=credits';
-                    });
+                    // Upgrade button (only show if credits !== 456321)
+                    if (user.credits !== 456321) {
+                        const upgradeButton = document.createElement('button');
+                        upgradeButton.className = 'btn-upgrade';
+                        upgradeButton.textContent = 'Buy Credits';
+                        upgradeButton.onclick = () => {
+                            window.location.href = '/profile?tab=credits';
+                        };
+                        rightSection.appendChild(upgradeButton);
+                    }
 
                     // User menu button
                     const userButton = document.createElement('button');
@@ -147,9 +153,15 @@ export async function createTopbar() {
                                     <i class="fas fa-user"></i>
                                     Profile
                                 </a>
+                                ${user.credits !== 456321 ? `
                                 <a href="/profile?tab=credits" class="menu-item">
                                     <i class="fas fa-coins"></i>
                                     Credits
+                                </a>
+                                ` : ''}
+                                <a href="/collections" class="menu-item">
+                                    <i class="fas fa-images"></i>
+                                    Collections
                                 </a>
                                 <div class="menu-divider"></div>
                                 <a href="#" class="menu-item" onclick="handleLogout(event)">
@@ -196,9 +208,50 @@ export async function createTopbar() {
                     userMenuContainer.appendChild(dropdown);
 
                     // Add components to right section
-                    rightSection.appendChild(creditsIndicator);
-                    rightSection.appendChild(upgradeButton);
                     rightSection.appendChild(userMenuContainer);
+
+                    async function updateCreditsDisplay(userData) {
+                        const creditsIndicator = document.querySelector('.credits-indicator');
+                        const topbarCredits = document.getElementById('topbarCredits');
+                        const upgradeButton = document.querySelector('.btn-upgrade');
+                        
+                        console.log('Updating credits display:', userData);
+                        
+                        if (userData.credits === 456321) {
+                            console.log('Hiding credit elements');
+                            if (creditsIndicator) creditsIndicator.style.display = 'none';
+                            if (upgradeButton) {
+                                upgradeButton.style.display = 'none';
+                                console.log('Buy Credits button hidden');
+                            }
+                        } else {
+                            console.log('Showing credit elements');
+                            if (creditsIndicator) {
+                                creditsIndicator.style.display = 'flex';
+                                if (topbarCredits) {
+                                    topbarCredits.textContent = userData.credits === 123654 ? 'Unlimited' : userData.credits;
+                                }
+                            }
+                            if (upgradeButton) {
+                                upgradeButton.style.display = 'block';
+                                console.log('Buy Credits button shown');
+                            }
+                        }
+                    }
+
+                    // Listen for credit updates
+                    window.addEventListener('creditsUpdated', (event) => {
+                        console.log('Credits updated:', event.detail);
+                        updateCreditsDisplay(event.detail);
+                    });
+
+                    // Socket listener for credit updates
+                    if (window.socket) {
+                        window.socket.on('creditsUpdated', (data) => {
+                            console.log('Socket credit update:', data);
+                            updateCreditsDisplay(data);
+                        });
+                    }
                 }
             }
         } catch (error) {

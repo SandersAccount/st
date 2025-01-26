@@ -18,8 +18,8 @@
         }
 
         .container {
-            max-width: 600px;
-            margin: 6rem auto 2rem;
+            max-width: 800px;
+            margin: 1rem auto 2rem;
             padding: 0 1rem;
         }
 
@@ -213,6 +213,7 @@
         </button>
 
         <div id="result" class="result"></div>
+        <div id="errorMessage" class="error" style="display: none;"></div>
     </div>
 
     <script type="module">
@@ -243,6 +244,7 @@
         const promptInput = document.getElementById('prompt');
         const resultDiv = document.getElementById('result');
         const styleSelector = document.querySelector('style-selector');
+        const errorMessage = document.getElementById('errorMessage');
 
         let uploadedImage = null;
         let selectedStyle = '';
@@ -295,53 +297,86 @@
             reader.readAsDataURL(file);
         }
 
-        // Handle generation
-        generateBtn.addEventListener('click', async () => {
-            if (!uploadedImage) {
-                showToast('Please upload an image first', 'error');
-                return;
-            }
-
-            generateBtn.disabled = true;
-            resultDiv.innerHTML = '<div class="loading">Generating your sticker...</div>';
-
+        async function generateSticker() {
             try {
-                console.log('Sending image for processing...');
-                
-                // Create FormData and append the image and prompt
+                if (!uploadedImage) {
+                    errorMessage.textContent = 'Please upload an image first';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+
+                // Reset UI
+                errorMessage.textContent = '';
+                errorMessage.style.display = 'none';
+                generateBtn.disabled = true;
+                resultDiv.innerHTML = '<div class="loading">Generating your sticker...</div>';
+
                 const formData = new FormData();
                 formData.append('image', uploadedImage);
                 formData.append('prompt', promptInput.value.trim());
-                formData.append('style', selectedStyle);
+                formData.append('style', selectedStyle || '');
+
+                console.log('Sending request with:', {
+                    prompt: promptInput.value.trim(),
+                    style: selectedStyle,
+                    imageSize: uploadedImage.size
+                });
 
                 const response = await fetch('/api/face-to-sticker', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'include'
                 });
 
                 const data = await response.json();
 
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Generation failed');
+                if (response.status === 403) {
+                    if (data.error === 'Not enough credits') {
+                        errorMessage.textContent = 'You need credits to generate stickers. Please purchase credits to continue.';
+                        errorMessage.style.display = 'block';
+                        // Add a button to redirect to credits page
+                        const buyButton = document.createElement('button');
+                        buyButton.textContent = 'Buy Credits';
+                        buyButton.className = 'btn-primary';
+                        buyButton.onclick = () => window.location.href = '/profile?tab=credits';
+                        errorMessage.appendChild(document.createElement('br'));
+                        errorMessage.appendChild(buyButton);
+                        return;
+                    }
                 }
 
-                console.log('Generation successful:', data);
-                
-                // Create generation card with the result
-                resultDiv.innerHTML = '';
-                const card = document.createElement('generation-card');
-                card.setAttribute('image-url', data.imageUrl);
-                card.setAttribute('prompt', promptInput.value);
-                card.setAttribute('generation-id', data.generationId);
-                resultDiv.appendChild(card);
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to generate sticker');
+                }
+
+                if (data.success) {
+                    resultDiv.innerHTML = '';
+                    const card = document.createElement('generation-card');
+                    card.setAttribute('image-url', data.imageUrl);
+                    card.setAttribute('prompt', promptInput.value);
+                    card.setAttribute('generation-id', data.generationId);
+                    resultDiv.appendChild(card);
+                    
+                    // Update credits display if available
+                    const creditsElement = document.getElementById('topbarCredits');
+                    if (creditsElement && data.credits !== undefined) {
+                        creditsElement.textContent = data.credits === 123654 ? 'Unlimited' : data.credits;
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to generate sticker');
+                }
             } catch (error) {
-                console.error('Generation error:', error);
-                resultDiv.innerHTML = `<div class="error">Failed to generate sticker: ${error.message}</div>`;
-                showToast(`Failed to generate sticker: ${error.message}`, 'error');
+                console.error('Error:', error);
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+                resultDiv.innerHTML = '';
             } finally {
                 generateBtn.disabled = false;
             }
-        });
+        }
+
+        // Handle generation
+        generateBtn.addEventListener('click', generateSticker);
     </script>
 </body>
 </html>

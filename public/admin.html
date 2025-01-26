@@ -287,7 +287,7 @@
         <!-- Notifications Section -->
         <div class="notifications-section">
             <h2>Recent IPN Notifications</h2>
-            <div id="notificationsList" class="notifications-list">
+            <div id="notificationsContainer" class="notifications-list">
                 <!-- Notifications will be loaded here -->
             </div>
         </div>
@@ -338,7 +338,21 @@
         <!-- Users Section -->
         <div class="section">
             <h2>Manage Users</h2>
-            <div id="usersTable"></div>
+            <div id="usersTable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Credits</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Edit User Modal -->
@@ -389,51 +403,24 @@
                 
                 const users = await response.json();
                 
-                document.getElementById('usersTable').innerHTML = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Credits</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${users.map(user => `
-                                <tr class="${user.blocked?.status ? 'user-blocked' : ''}">
-                                    <td>${user.name || ''}</td>
-                                    <td>${user.email || ''}</td>
-                                    <td class="${user.credits === 123654 ? 'credits-unlimited' : ''}">${user.credits === 123654 ? 'Unlimited' : (user.credits || 0)}</td>
-                                    <td>${user.role || ''}</td>
-                                    <td>
-                                        ${user.blocked?.status ? 
-                                            `<span class="block-reason">Blocked: ${user.blocked.reason || 'No reason provided'}</span>` 
-                                            : 'Active'}
-                                    </td>
-                                    <td>
-                                        ${user.role !== 'admin' ? `
-                                            <button onclick='openEditModal(${JSON.stringify({
-                                                _id: user._id,
-                                                name: user.name || '',
-                                                email: user.email || '',
-                                                credits: user.credits || 0
-                                            }).replace(/'/g, "&apos;")})'
-                                            class="btn-small">Edit</button>
-                                            ${user.blocked?.status ?
-                                                `<button onclick="toggleBlockUser('${user._id}', false)" class="btn-small btn-unblock">Unblock</button>`
-                                                : `<button onclick="toggleBlockUser('${user._id}', true)" class="btn-small btn-block">Block</button>`
-                                            }
-                                            <button onclick="deleteUser('${user._id}')" class="btn-small btn-delete">Delete</button>
-                                        ` : 'Admin'}
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${user.name || ''}</td>
+                        <td>${user.email || ''}</td>
+                        <td>${user.credits === 456321 ? 'HIDE' : (user.credits === 123654 ? 'Unlimited' : user.credits)}</td>
+                        <td>${user.role || ''}</td>
+                        <td>${user.status || 'Active'}</td>
+                        <td>
+                            <button class="btn-small" onclick='openEditModal(${JSON.stringify(user)})'>Edit</button>
+                            <button class="btn-small btn-delete" onclick="deleteUser('${user._id}')">Delete</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
             } catch (error) {
                 console.error('Error loading users:', error);
                 document.getElementById('usersTable').innerHTML = 
@@ -706,36 +693,53 @@
             }
         }
 
-        // Add loadNotifications function
+        // Load notifications function
         async function loadNotifications() {
             try {
-                const response = await fetch('/admin/notifications');
-                const notifications = await response.json();
-                
-                const notificationsList = document.getElementById('notificationsList');
-                notificationsList.innerHTML = notifications.map(notification => `
-                    <div class="notification-item">
-                        <div>
-                            <strong>${notification.email}</strong> - 
-                            <span>${notification.productId}</span>
+                const response = await fetch('/api/admin/notifications', {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    console.log("Notifications not implemented yet");
+                    return;
+                }
+
+                const data = await response.json();
+                const container = document.getElementById('notificationsContainer');
+                if (!container) return;
+
+                if (data.notifications && data.notifications.length > 0) {
+                    container.innerHTML = data.notifications.map(notification => `
+                        <div class="notification">
+                            <p>${notification.message}</p>
+                            <span class="time">${new Date(notification.timestamp).toLocaleString()}</span>
                         </div>
-                        <div style="display: flex; gap: 1rem; align-items: center;">
-                            <span class="notification-time">${new Date(notification.timestamp).toLocaleString()}</span>
-                            <span class="notification-status status-${notification.status}">${notification.status}</span>
-                        </div>
-                    </div>
-                `).join('');
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p>No new notifications</p>';
+                }
             } catch (error) {
-                console.error('Error loading notifications:', error);
+                console.log("Notifications not implemented yet");
             }
         }
 
         // Initialize page
-        loadUsers();
-        loadNotifications();
-        
-        // Refresh notifications every minute
-        setInterval(loadNotifications, 60000);
+        async function initializePage() {
+            await loadUsers();
+            await loadNotifications();
+        }
+
+        // Call initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePage);
     </script>
 </body>
 </html>

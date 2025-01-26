@@ -9,6 +9,7 @@ export class GenerationCard extends HTMLElement {
         this._prompt = '';
         this._isUpscaled = false;
         this._id = '';
+        this._isUpscaling = false;
         this.connectedCallback();
     }
 
@@ -105,14 +106,14 @@ export class GenerationCard extends HTMLElement {
     render() {
         const upscaleButton = this._isUpscaled ? '' : `
             <button class="menu-button" data-action="upscale" title="Upscale Image">
-                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
-                Upscale
+                <img src="/images/ph--arrow-square-up-right-light.svg" />
+                Upscale Image
             </button>
         `;
 
         const hdBadge = this._isUpscaled ? `
             <div class="hd-badge">
-                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
+                <img src="/images/ph--arrow-square-up-right-light.svg" />
                 HD
             </div>
         ` : '';
@@ -227,24 +228,24 @@ export class GenerationCard extends HTMLElement {
                 <div class="menu-overlay">
                     ${upscaleButton}
                     <button class="menu-button" data-action="collection" title="Add to Collection">
-                        <img src="/images/icons/ph-folder-simple-plus-light.svg" />
-                        Add
+                        <img src="/images/ph--folder-simple-plus-light.svg" />
+                        Add to Collection
                     </button>
                     <button class="menu-button" data-action="download" title="Download Image">
-                        <img src="/images/icons/ph-download-simple-light.svg" />
-                        Save
+                        <img src="/images/ph--download-simple-light.svg" />
+                        Download
                     </button>
-                    <button class="menu-button" data-action="prompt" title="View Prompt">
-                        <img src="/images/icons/ph-file-code-light.svg" />
-                        Prompt
+                    <button class="menu-button" data-action="bgremove" title="Remove Background">
+                        <img src="/images/ph--images-square-light.svg" />
+                        BG Remove
                     </button>
                     <button class="menu-button" data-action="edit" title="Edit in Sticker Editor">
-                        <img src="/images/icons/ph-pencil-simple-light.svg" />
+                        <img src="/images/ph--pencil-line-light%20(1).svg" />
                         Edit
                     </button>
                     <button class="menu-button" data-action="delete" title="Delete Image">
-                        <img src="/images/icons/ph-trash-light.svg" />
-                        Delete
+                        <img src="/images/ph--trash-light.svg" />
+                        Delete Image
                     </button>
                 </div>
             </div>
@@ -274,8 +275,8 @@ export class GenerationCard extends HTMLElement {
                     case 'download':
                         await this.handleDownload();
                         break;
-                    case 'prompt':
-                        this.handleShowPrompt();
+                    case 'bgremove':
+                        await this.handleBgRemove();
                         break;
                     case 'edit':
                         this.handleEdit();
@@ -286,6 +287,127 @@ export class GenerationCard extends HTMLElement {
                 }
             });
         });
+    }
+
+    async handleUpscale() {
+        if (this._isUpscaling) return;
+
+        const upscaleButton = this.shadowRoot.querySelector('.menu-button[data-action="upscale"]');
+        if (!upscaleButton) {
+            console.error('Upscale button not found');
+            return;
+        }
+
+        try {
+            this._isUpscaling = true;
+            upscaleButton.disabled = true;
+            upscaleButton.innerHTML = `
+                <img src="/images/ph--arrow-square-up-right-light.svg" />
+                Upscaling...
+            `;
+
+            // Get user data to check hideCredits status
+            const userResponse = await fetch('/api/auth/user', {
+                credentials: 'include'
+            });
+            const userData = await userResponse.json();
+
+            const response = await fetch('/api/images/upscale', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    imageUrl: this._imageUrl
+                }),
+                credentials: 'include'
+            });
+
+            const data = await response.json();
+
+            if (response.status === 403) {
+                if (data.error === 'Not enough credits' && !userData.hideCredits) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.textContent = 'You need credits to upscale images. Please purchase credits to continue.';
+                    
+                    const buyButton = document.createElement('button');
+                    buyButton.textContent = 'Buy Credits';
+                    buyButton.className = 'btn-primary';
+                    buyButton.onclick = () => window.location.href = '/profile?tab=credits';
+                    
+                    errorDiv.appendChild(document.createElement('br'));
+                    errorDiv.appendChild(buyButton);
+                    
+                    this.shadowRoot.appendChild(errorDiv);
+                    return;
+                }
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Failed to upscale image');
+            }
+
+            // Update the component state
+            this.setAttribute('image-url', data.imageUrl);
+            this.setAttribute('is-upscaled', 'true');
+            this._isUpscaled = true;
+            this._imageUrl = data.imageUrl;
+            
+            // Force image reload by adding a timestamp
+            const img = this.shadowRoot.querySelector('img');
+            if (img) {
+                const timestamp = new Date().getTime();
+                img.src = `${data.imageUrl}?t=${timestamp}`;
+            }
+
+            // Update credits display only if not hidden
+            if (!userData.hideCredits) {
+                const creditsElement = document.getElementById('topbarCredits');
+                if (creditsElement && data.credits !== undefined) {
+                    creditsElement.textContent = data.credits === 123654 ? 'Unlimited' : data.credits;
+                }
+            }
+
+            // Show success toast
+            showToast('Image upscaled successfully!', 'success');
+
+            // Hide upscale button since image is now upscaled
+            upscaleButton.style.display = 'none';
+
+            // Dispatch event to notify parent components
+            this.dispatchEvent(new CustomEvent('imageUpscaled', {
+                bubbles: true,
+                composed: true,
+                detail: {
+                    generationId: this._id,
+                    newImageUrl: data.imageUrl,
+                    isUpscaled: true
+                }
+            }));
+
+            // Force re-render to update UI
+            this.render();
+
+        } catch (error) {
+            console.error('Error upscaling image:', error);
+            showToast('Failed to upscale image. Please try again.', 'error');
+            
+            // Show error message in the card
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = error.message;
+            this.shadowRoot.appendChild(errorDiv);
+        } finally {
+            this._isUpscaling = false;
+            if (upscaleButton) {
+                upscaleButton.disabled = false;
+                upscaleButton.innerHTML = `
+                    <img src="/images/ph--arrow-square-up-right-light.svg" />
+                    Upscale Image
+                `;
+            }
+        }
     }
 
     handleAddToCollection() {
@@ -356,19 +478,26 @@ export class GenerationCard extends HTMLElement {
         }
     }
 
-    async handleUpscale() {
-        const upscaleButton = this.shadowRoot.querySelector('.menu-button[data-action="upscale"]');
-        if (!upscaleButton) return;
+    handleEdit() {
+        // Redirect to sticker editor with the image URL
+        const editorUrl = new URL('/sticker-editor.html', window.location.origin);
+        editorUrl.searchParams.set('image', this._imageUrl);
+        window.location.href = editorUrl.toString();
+    }
+
+    async handleBgRemove() {
+        const bgRemoveButton = this.shadowRoot.querySelector('.menu-button[data-action="bgremove"]');
+        if (!bgRemoveButton) return;
 
         try {
-            upscaleButton.disabled = true;
+            bgRemoveButton.disabled = true;
             const loadingHtml = `
-                <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
-                Upscaling...
+                <img src="/images/ph--images-square-light.svg" />
+                Removing BG...
             `;
-            upscaleButton.innerHTML = loadingHtml;
+            bgRemoveButton.innerHTML = loadingHtml;
             
-            const response = await fetch('/api/images/upscale', {
+            const response = await fetch('/api/images/bgremove', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -380,57 +509,29 @@ export class GenerationCard extends HTMLElement {
 
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || data.details || 'Failed to upscale image');
+                throw new Error(data.error || data.details || 'Failed to remove background');
             }
-            
-            // Update the component state
+
+            // Update the image with the background removed version
+            this._imageUrl = data.imageUrl;
             this.setAttribute('image-url', data.imageUrl);
-            this.setAttribute('is-upscaled', 'true');
-            this._isUpscaled = true;
             
-            // Force image reload by adding a timestamp
-            const img = this.shadowRoot.querySelector('img');
-            if (img) {
-                const timestamp = new Date().getTime();
-                img.src = `${data.imageUrl}?t=${timestamp}`;
-            }
-
-            // Show success toast
-            showToast('Image upscaled successfully!', 'success');
-
-            // Dispatch event to notify parent components
-            this.dispatchEvent(new CustomEvent('imageUpscaled', {
-                bubbles: true,
-                composed: true,
-                detail: {
-                    generationId: this._id,
-                    newImageUrl: data.imageUrl,
-                    isUpscaled: true
-                }
-            }));
-
-            // Force re-render to update UI
-            this.render();
+            // Reset button state
+            bgRemoveButton.disabled = false;
+            bgRemoveButton.innerHTML = `
+                <img src="/images/ph--images-square-light.svg" />
+                BG Remove
+            `;
 
         } catch (error) {
-            console.error('Error upscaling image:', error);
-            showToast('Failed to upscale image. Please try again.', 'error');
-        } finally {
-            if (upscaleButton) {
-                upscaleButton.disabled = false;
-                upscaleButton.innerHTML = `
-                    <img src="/images/icons/ph-arrow-square-up-right-light.svg" />
-                    Upscale
-                `;
-            }
+            console.error('Error removing background:', error);
+            bgRemoveButton.disabled = false;
+            bgRemoveButton.innerHTML = `
+                <img src="/images/ph--images-square-light.svg" />
+                BG Remove
+            `;
+            showToast(error.message, 'error');
         }
-    }
-
-    handleEdit() {
-        // Redirect to sticker editor with the image URL
-        const editorUrl = new URL('/sticker-editor.html', window.location.origin);
-        editorUrl.searchParams.set('image', this._imageUrl);
-        window.location.href = editorUrl.toString();
     }
 
     connectedCallback() {

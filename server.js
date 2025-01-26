@@ -3,17 +3,12 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import './config/database.js';  // Import database connection
 import Replicate from 'replicate';
 import { saveImageFromUrl, uploadBuffer } from './utils/storage.js';
 import { dirname, join } from 'path';
-import mongoose from 'mongoose';
-import auth from './middleware/auth.js';
-import adminAuth from './middleware/adminAuth.js';
-import imageGenerator from './services/imageGenerator.js';
-import Generation from './models/Generation.js';
-import Collection from './models/Collection.js'; 
 import jwt from 'jsonwebtoken'; 
 import User from './models/User.js';
 import Settings from './models/Settings.js';
@@ -30,6 +25,8 @@ import axios from 'axios';
 import ipnRouter from './routes/ipn.js';
 import variablesRouter from './routes/variables.js';
 import Variable from './models/Variable.js';
+import Collection from './models/Collection.js'; 
+import Generation from './models/Generation.js';
 
 // Load environment variables
 dotenv.config();
@@ -37,28 +34,127 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Initialize express app
 const app = express();
-const port = process.env.PORT || 3005;
 
-// Initialize Replicate with API token
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static files
+app.use(express.static(join(__dirname, 'public')));
+
+// Configure multer for file uploads
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB limit
+    }
+});
+
+// Initialize Replicate client
 const replicate = new Replicate({
     auth: process.env.REPLICATE_API_TOKEN,
 });
 
-// Configure multer for form data
-const upload = multer();
+const port = process.env.PORT || 3005;
 
-// Middleware
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+// Auth middleware
+const auth = async (req, res, next) => {
+    try {
+        const token = req.cookies.token;
+        if (!token) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
 
-// Serve static files from public directory
-app.use(express.static(join(__dirname, 'public')));
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+};
+
+// Admin auth middleware
+const adminAuth = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user || user.role !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to verify admin status' });
+    }
+};
+
+// Admin set credits endpoint
+app.post('/api/admin/set-credits', auth, adminAuth, async (req, res) => {
+    try {
+        const { userId, credits } = req.body;
+        const creditsNum = parseInt(credits, 10);
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Set the credits
+        user.credits = creditsNum;
+        
+        // Set hideCredits based on credit value
+        user.hideCredits = creditsNum === 456321;
+
+        await user.save();
+
+        // Update credits display through websocket if available
+        if (req.app.get('io')) {
+            req.app.get('io').to(userId).emit('creditsUpdated', { 
+                credits: user.credits,
+                hideCredits: user.hideCredits
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            credits: user.credits,
+            hideCredits: user.hideCredits,
+            displayText: user.credits === 456321 ? 'HIDE' : (user.credits === 123654 ? 'Unlimited' : user.credits)
+        });
+    } catch (error) {
+        console.error('Error setting credits:', error);
+        res.status(500).json({ error: 'Failed to set credits' });
+    }
+});
+
+// Update user info endpoint to not show HIDE in user dashboard
+app.get('/api/auth/user', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Set hideCredits flag based on credit value
+        const hideCredits = user.credits === 456321;
+
+        res.json({
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            credits: user.credits,
+            hideCredits: hideCredits,
+            role: user.role,
+            stickersGenerated: user.stickersGenerated || 0,
+            collectionsCount: user.collectionsCount || 0
+        });
+    } catch (error) {
+        console.error('Error getting user:', error);
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
+});
 
 // Public endpoints that don't require auth
 app.get('/api/settings', auth, async (req, res) => {
@@ -80,26 +176,37 @@ app.get('/api/settings', auth, async (req, res) => {
     }
 });
 
-// Auth check middleware for protected routes
-app.use('/api', (req, res, next) => {
-    // Skip auth check for public endpoints
-    if (req.path === '/settings' || 
-        req.path.startsWith('/auth/') || 
-        req.path.startsWith('/ipn/')) {
-        return next();
-    }
-
-    const token = req.cookies.token;
-    if (!token) {
-        return res.status(401).json({ error: 'Authentication required' });
-    }
-
+// User info endpoint
+app.get('/api/auth/user', auth, async (req, res) => {
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.userId = decoded.userId;
-        next();
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            credits: user.credits,
+            hideCredits: user.hideCredits,
+            role: user.role
+        });
     } catch (error) {
-        res.status(401).json({ error: 'Invalid token' });
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
+});
+
+// Admin notifications endpoint
+app.get('/api/admin/notifications', auth, adminAuth, async (req, res) => {
+    try {
+        // For now, just return an empty array
+        res.json({
+            notifications: []
+        });
+    } catch (error) {
+        console.error('Error fetching notifications:', error);
+        res.status(500).json({ error: 'Failed to fetch notifications' });
     }
 });
 
@@ -239,10 +346,10 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Serve static files from the public directory
-app.use('/storage/images', express.static(join(__dirname, 'storage', 'images')));
+app.use(express.static(join(__dirname, 'public')));
 
 // Image generation endpoint
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', auth, async (req, res) => {
     try {
         const { prompt, style } = req.body;
         console.log('Starting image generation...');
@@ -324,7 +431,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 // Image download endpoint
-app.get('/api/download', async (req, res) => {
+app.get('/api/download', auth, async (req, res) => {
     try {
         const { imageUrl } = req.query;
         
@@ -384,93 +491,100 @@ app.get('/api/download', async (req, res) => {
 });
 
 // Image upscaling endpoint
-app.post('/api/images/upscale', async (req, res) => {
+app.post('/api/images/upscale', auth, async (req, res) => {
     try {
         const { imageUrl } = req.body;
         console.log('Upscale request received for image:', imageUrl);
+
+        // Check if user has enough credits
+        const user = await User.findById(req.userId);
+        console.log('User before upscale - ID:', req.userId, 'Credits:', user?.credits);
+        
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        if (user.credits < 1 && user.credits !== 123654) { // Allow if unlimited credits (123654)
+            return res.status(403).json({ error: 'Not enough credits' });
+        }
         
         if (!imageUrl) {
-            return res.status(400).json({ error: 'Image URL is required' });
+            return res.status(400).json({ error: 'No image URL provided' });
         }
 
-        // Extract the filename from the URL
-        const urlParts = imageUrl.split('/');
-        const originalFilename = urlParts[urlParts.length - 1];
-        console.log('Original filename:', originalFilename);
-
-        // Validate the image URL belongs to the user
-        const generation = await Generation.findOne({
-            userId: req.userId,
-            imageUrl: { $regex: new RegExp(originalFilename + '$') }
-        });
-
-        console.log('Found generation:', generation);
-
-        if (!generation) {
-            return res.status(404).json({ error: 'Image not found' });
-        }
-
-        // Check if image is already upscaled
-        if (generation.isUpscaled) {
-            return res.status(400).json({ error: 'Image is already upscaled' });
-        }
-
-        console.log('Starting image upscaling...');
-        const modelVersion = "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b";
-        
-        console.log('Calling Replicate API with image:', imageUrl);
+        // Run the upscale model
         const output = await replicate.run(
-            modelVersion,
+            "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
             {
                 input: {
                     image: imageUrl,
-                    scale: 2
+                    scale: 2,
+                    face_enhance: true
                 }
             }
         );
 
-        console.log('Replicate API response:', output);
-
         if (!output) {
-            console.error('Invalid output from Replicate:', output);
-            throw new Error('Failed to get upscaled image URL from Replicate');
+            throw new Error('No output received from upscale model');
         }
 
-        // Handle both array and string responses from Replicate
-        const upscaledImageUrl = Array.isArray(output) ? output[0] : output;
-        console.log('Upscaled image URL:', upscaledImageUrl);
+        console.log('Upscale output:', output);
 
-        if (!upscaledImageUrl || typeof upscaledImageUrl !== 'string') {
-            throw new Error('Invalid upscaled image URL from Replicate');
-        }
+        // Save the upscaled image
+        const savedImage = await saveImageFromUrl(output);
+        console.log('Saved upscaled image:', savedImage);
 
-        // Download and save the upscaled image to the upscaled folder
-        console.log('Downloading upscaled image...');
-        const savedImage = await saveImageFromUrl(upscaledImageUrl, true);
-        console.log('Saved image:', savedImage);
-
-        if (!savedImage || !savedImage.publicUrl) {
-            console.error('Failed to save image:', savedImage);
-            throw new Error('Failed to save upscaled image');
-        }
-
-        // Update the generation record
-        generation.imageUrl = savedImage.publicUrl;
-        generation.isUpscaled = true;
-        await generation.save();
-
-        res.json({
+        // Create a new generation record for the upscaled image
+        const generation = new Generation({
+            userId: req.userId,
+            prompt: 'Upscaled',
             imageUrl: savedImage.publicUrl,
+            originalImage: imageUrl,
+            status: 'completed',
+            type: 'upscale',
             isUpscaled: true
         });
-    } catch (error) {
-        console.error('Error in image upscaling:', {
-            message: error.message,
-            stack: error.stack
+
+        await generation.save();
+        console.log('Generation saved:', generation);
+
+        // Deduct credits if not unlimited
+        let updatedCredits = user.credits;
+        if (user.credits !== 123654) {
+            // Fetch fresh user data to avoid race conditions
+            const freshUser = await User.findById(req.userId);
+            if (!freshUser) {
+                throw new Error('User not found during credit deduction');
+            }
+            
+            if (freshUser.credits < 1 && freshUser.credits !== 123654) {
+                throw new Error('Insufficient credits');
+            }
+
+            freshUser.credits -= 1;
+            await freshUser.save();
+            updatedCredits = freshUser.credits;
+            console.log('Credits deducted. New balance:', updatedCredits);
+            
+            // Dispatch credit update event through websocket if available
+            if (req.app.get('io')) {
+                req.app.get('io').to(req.userId).emit('creditsUpdated', { credits: updatedCredits });
+            }
+        }
+
+        res.json({
+            success: true,
+            imageUrl: savedImage.publicUrl,
+            generationId: generation._id,
+            credits: updatedCredits
         });
+
+    } catch (error) {
+        console.error('Error in upscale:', error);
         res.status(500).json({ 
-            error: 'Failed to upscale image',
-            details: error.message
+            success: false,
+            error: error.message || 'Failed to upscale image',
+            details: error.stack
         });
     }
 });
@@ -502,6 +616,94 @@ app.get('/api/download', async (req, res) => {
     } catch (error) {
         console.error('Download error:', error);
         res.status(500).json({ error: 'Failed to download image' });
+    }
+});
+
+// Background removal endpoint
+app.post('/api/images/bgremove', async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        console.log('Background removal request received for image:', imageUrl);
+        
+        if (!imageUrl) {
+            return res.status(400).json({ error: 'Image URL is required' });
+        }
+
+        // Extract the filename from the URL
+        const urlParts = imageUrl.split('/');
+        const originalFilename = urlParts[urlParts.length - 1];
+        console.log('Original filename:', originalFilename);
+
+        // Validate the image URL belongs to the user
+        const generation = await Generation.findOne({
+            userId: req.userId,
+            imageUrl: { $regex: new RegExp(originalFilename + '$') }
+        });
+
+        console.log('Found generation:', generation);
+
+        if (!generation) {
+            return res.status(404).json({ error: 'Image not found' });
+        }
+
+        console.log('Starting background removal...');
+        const modelVersion = "851-labs/background-remover:a029dff38972b5fda4ec5d75d7d1cd25aeff621d2cf4946a41055d7db66b80bc";
+        
+        console.log('Calling Replicate API with image:', imageUrl);
+        const output = await replicate.run(
+            modelVersion,
+            {
+                input: {
+                    image: imageUrl,
+                    format: "png",
+                    reverse: false,
+                    threshold: 0,
+                    background_type: "rgba"
+                }
+            }
+        );
+
+        console.log('Replicate API response:', output);
+
+        if (!output) {
+            console.error('Invalid output from Replicate:', output);
+            throw new Error('Failed to get processed image URL from Replicate');
+        }
+
+        // Handle both array and string responses from Replicate
+        const processedImageUrl = Array.isArray(output) ? output[0] : output;
+        console.log('Processed image URL:', processedImageUrl);
+
+        if (!processedImageUrl || typeof processedImageUrl !== 'string') {
+            throw new Error('Invalid processed image URL from Replicate');
+        }
+
+        // Download and save the processed image
+        console.log('Downloading processed image...');
+        const savedImage = await saveImageFromUrl(processedImageUrl, false, 'nobg');
+        console.log('Saved image:', savedImage);
+
+        if (!savedImage || !savedImage.publicUrl) {
+            console.error('Failed to save image:', savedImage);
+            throw new Error('Failed to save processed image');
+        }
+
+        // Update the generation record
+        generation.imageUrl = savedImage.publicUrl;
+        await generation.save();
+
+        res.json({
+            imageUrl: savedImage.publicUrl
+        });
+    } catch (error) {
+        console.error('Error in background removal:', {
+            message: error.message,
+            stack: error.stack
+        });
+        res.status(500).json({ 
+            error: 'Failed to remove background',
+            details: error.message
+        });
     }
 });
 
@@ -573,34 +775,34 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // Protected routes - require authentication
-app.get('/collections', async (req, res) => {
+app.get('/collections', auth, async (req, res) => {
     console.log('Serving collections page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'collections.html'));
 });
 
-app.get('/generate', async (req, res) => {
+app.get('/generate', auth, async (req, res) => {
     console.log('Serving generate page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'generate.html'));
 });
 
-app.get('/profile', async (req, res) => {
+app.get('/profile', auth, async (req, res) => {
     console.log('Serving profile page for user:', req.userId);
     res.sendFile(join(__dirname, 'public', 'profile.html'));
 });
 
-app.get('/index.html', async (req, res) => {
+app.get('/index.html', auth, async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
-app.get('/admin', async (req, res) => {
+app.get('/admin', auth, adminAuth, async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin.html'));
 });
 
-app.get('/admin-variables', async (req, res) => {
+app.get('/admin-variables', auth, adminAuth, async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin-variables.html'));
 });
 
-app.get('/api/admin/users', async (req, res) => {
+app.get('/api/admin/users', auth, adminAuth, async (req, res) => {
     try {
         const users = await User.find({}).select('-password');
         res.json(users);
@@ -610,7 +812,7 @@ app.get('/api/admin/users', async (req, res) => {
     }
 });
 
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/stats', auth, adminAuth, async (req, res) => {
     try {
         // Get user statistics
         const totalUsers = await User.countDocuments();
@@ -648,7 +850,7 @@ app.get('/api/admin/stats', async (req, res) => {
 });
 
 // Toggle user role
-app.put('/api/admin/users/:id/role', async (req, res) => {
+app.put('/api/admin/users/:id/role', auth, adminAuth, async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
         if (!user) {
@@ -666,7 +868,7 @@ app.put('/api/admin/users/:id/role', async (req, res) => {
 });
 
 // Update user plan
-app.post('/api/admin/users/:userId/plan', async (req, res) => {
+app.post('/api/admin/users/:userId/plan', auth, adminAuth, async (req, res) => {
     try {
         const { userId } = req.params;
         const { plan } = req.body;
@@ -704,7 +906,7 @@ app.get('/auth', (req, res) => {
 });
 
 // API routes - Update to be user-specific
-app.get('/api/generations', async (req, res) => {
+app.get('/api/generations', auth, async (req, res) => {
     try {
         const generations = await Generation.find({ userId: req.userId })
             .sort({ createdAt: -1 })
@@ -724,7 +926,7 @@ app.get('/api/generations', async (req, res) => {
     }
 });
 
-app.get('/api/generations/recent', async (req, res) => {
+app.get('/api/generations/recent', auth, async (req, res) => {
     try {
         console.log('Fetching recent generations for user:', req.userId);
         const generations = await Generation
@@ -768,7 +970,7 @@ app.get('/api/generations/recent', async (req, res) => {
 });
 
 // Delete a generation
-app.delete('/api/generations/:id', async (req, res) => {
+app.delete('/api/generations/:id', auth, async (req, res) => {
     try {
         const generation = await Generation.findOne({
             _id: req.params.id,
@@ -791,7 +993,7 @@ app.delete('/api/generations/:id', async (req, res) => {
 });
 
 // Collections API endpoints - Update to be user-specific
-app.post('/api/collections', async (req, res) => {
+app.post('/api/collections', auth, async (req, res) => {
     try {
         const { title } = req.body;
         if (!title) {
@@ -816,7 +1018,7 @@ app.post('/api/collections', async (req, res) => {
     }
 });
 
-app.get('/api/collections', async (req, res) => {
+app.get('/api/collections', auth, async (req, res) => {
     try {
         console.log('Fetching collections for user:', req.userId);
         const collections = await Collection.find({ userId: req.userId })
@@ -888,7 +1090,7 @@ app.get('/collection/:id', auth, async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'collection.html'));
 });
 
-app.post('/api/collections/:collectionId/images', async (req, res) => {
+app.post('/api/collections/:collectionId/images', auth, async (req, res) => {
     try {
         const { collectionId } = req.params;
         const { imageUrl, prompt } = req.body;
@@ -941,7 +1143,7 @@ app.post('/api/collections/:collectionId/images', async (req, res) => {
     }
 });
 
-app.delete('/api/collections/:collectionId/images/:imageId', async (req, res) => {
+app.delete('/api/collections/:collectionId/images/:imageId', auth, async (req, res) => {
     try {
         const { collectionId, imageId } = req.params;
 
@@ -976,7 +1178,7 @@ app.delete('/api/collections/:collectionId/images/:imageId', async (req, res) =>
 });
 
 // Delete generation - ensure user can only delete their own
-app.delete('/api/generations/:id', async (req, res) => {
+app.delete('/api/generations/:id', auth, async (req, res) => {
     try {
         const generation = await Generation.findOne({
             _id: req.params.id,
@@ -996,7 +1198,7 @@ app.delete('/api/generations/:id', async (req, res) => {
 });
 
 // User API routes
-app.get('/api/auth/user', async (req, res) => {
+app.get('/api/auth/user', auth, async (req, res) => {
     try {
         const user = await User.findById(req.userId).select('-password');
         console.log('Fetched user data:', user);
@@ -1014,7 +1216,7 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // API route for user profile
-app.get('/api/profile', async (req, res) => {
+app.get('/api/profile', auth, async (req, res) => {
     try {
         const user = await User.findById(req.userId).select('-password');
         res.json(user);
@@ -1025,7 +1227,7 @@ app.get('/api/profile', async (req, res) => {
 });
 
 // Update profile
-app.put('/api/profile', async (req, res) => {
+app.put('/api/profile', auth, async (req, res) => {
     try {
         const { name, nickname, bio } = req.body;
         const user = await User.findByIdAndUpdate(
@@ -1046,12 +1248,12 @@ app.get('/test', (req, res) => {
 });
 
 // Serve admin-styles page
-app.get('/admin-styles', async (req, res) => {
+app.get('/admin-styles', auth, adminAuth, async (req, res) => {
     res.sendFile(join(__dirname, 'public', 'admin-styles.html'));
 });
 
 // Style management endpoints
-app.get('/api/admin/styles', async (req, res) => {
+app.get('/api/admin/styles', auth, adminAuth, async (req, res) => {
     try {
         const styles = await Style.find().sort({ order: 1 });
         
@@ -1070,7 +1272,7 @@ app.get('/api/admin/styles', async (req, res) => {
     }
 });
 
-app.post('/api/admin/styles', async (req, res) => {
+app.post('/api/admin/styles', auth, adminAuth, upload.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1114,7 +1316,7 @@ app.post('/api/admin/styles', async (req, res) => {
     }
 });
 
-app.delete('/api/admin/styles/:id', async (req, res) => {
+app.delete('/api/admin/styles/:id', auth, adminAuth, async (req, res) => {
     try {
         const style = await Style.findById(req.params.id);
         if (!style) {
@@ -1139,7 +1341,7 @@ app.delete('/api/admin/styles/:id', async (req, res) => {
 });
 
 // Get all styles with sorting
-app.get('/api/styles', async (req, res) => {
+app.get('/api/styles', auth, async (req, res) => {
     try {
         const { sortBy = 'order', sortOrder = 'asc' } = req.query;
         
@@ -1162,7 +1364,7 @@ app.get('/api/styles', async (req, res) => {
     }
 });
 
-app.post('/api/styles', upload.single('image'), async (req, res) => {
+app.post('/api/styles', auth, upload.single('image'), async (req, res) => {
     try {
         console.log('Received style creation request');
         const { name, prompt } = req.body;
@@ -1206,7 +1408,7 @@ app.post('/api/styles', upload.single('image'), async (req, res) => {
     }
 });
 
-app.put('/api/styles/:id', upload.single('image'), async (req, res) => {
+app.put('/api/styles/:id', auth, upload.single('image'), async (req, res) => {
     try {
         const { name, prompt } = req.body;
         const updateData = { name, prompt };
@@ -1245,7 +1447,7 @@ app.put('/api/styles/:id', upload.single('image'), async (req, res) => {
     }
 });
 
-app.delete('/api/styles/:id', async (req, res) => {
+app.delete('/api/styles/:id', auth, async (req, res) => {
     try {
         const style = await Style.findById(req.params.id);
         if (!style) {
@@ -1270,7 +1472,7 @@ app.delete('/api/styles/:id', async (req, res) => {
 });
 
 // Get a single style by ID
-app.get('/api/styles/:id', async (req, res) => {
+app.get('/api/styles/:id', auth, async (req, res) => {
     try {
         const style = await Style.findById(req.params.id);
         if (!style) {
@@ -1283,7 +1485,7 @@ app.get('/api/styles/:id', async (req, res) => {
     }
 });
 
-app.put('/api/styles/order', async (req, res) => {
+app.put('/api/styles/order', auth, async (req, res) => {
     try {
         const { styles } = req.body;
         
@@ -1319,7 +1521,7 @@ app.get('/api/settings', auth, async (req, res) => {
 });
 
 // Update settings
-app.put('/api/settings', async (req, res) => {
+app.put('/api/settings', auth, async (req, res) => {
     try {
         console.log('Updating settings:', req.body);
         
@@ -1375,7 +1577,7 @@ app.put('/api/settings', async (req, res) => {
 });
 
 // Add generation to collection
-app.post('/api/collections/:collectionId/generations', async (req, res) => {
+app.post('/api/collections/:collectionId/generations', auth, async (req, res) => {
     try {
         const { collectionId } = req.params;
         const { imageUrl, prompt } = req.body;
@@ -1397,7 +1599,9 @@ app.post('/api/collections/:collectionId/generations', async (req, res) => {
             imageUrl: imageUrl,
             status: 'completed'
         });
+
         await generation.save();
+        console.log('Generation saved:', generation);
 
         // Add generation to collection
         collection.images.push(generation._id);
@@ -1413,7 +1617,7 @@ app.post('/api/collections/:collectionId/generations', async (req, res) => {
 });
 
 // Image download endpoint
-app.get('/api/download', async (req, res) => {
+app.get('/api/download', auth, async (req, res) => {
     try {
         const { imageUrl } = req.query;
         
@@ -1473,7 +1677,7 @@ app.get('/api/download', async (req, res) => {
 });
 
 // Get all collections for the authenticated user
-app.get('/api/collections', async (req, res) => {
+app.get('/api/collections', auth, async (req, res) => {
     try {
         const collections = await Collection.find({ userId: req.userId })
             .select('title stats')
@@ -1495,7 +1699,7 @@ app.get('/api/collections', async (req, res) => {
     }
 });
 
-app.get('/api/collections/:collectionId/generations', async (req, res) => {
+app.get('/api/collections/:collectionId/generations', auth, async (req, res) => {
     try {
         const collection = await Collection.findOne({
             _id: req.params.collectionId,
@@ -1527,25 +1731,45 @@ app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) 
         const { prompt, style } = req.body;
         const imageFile = req.file;
 
+        console.log('Request body:', req.body);
+        console.log('Image file:', imageFile);
+
+        // Check if user has enough credits
+        const user = await User.findById(req.userId);
+        console.log('User before face-to-sticker - ID:', req.userId, 'Credits:', user?.credits);
+        
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        if (user.credits < 1 && user.credits !== 123654) { // Allow if unlimited credits (123654)
+            return res.status(403).json({ error: 'Not enough credits' });
+        }
+        
         if (!imageFile) {
-            throw new Error('No image provided');
+            return res.status(400).json({ error: 'No image provided' });
         }
 
         // Combine prompt and style
-        const fullPrompt = style ? `${prompt || ''} ${style}`.trim() : prompt;
+        const fullPrompt = style ? `${prompt || ''} ${style}`.trim() : (prompt || '');
         console.log('Processing image with prompt:', fullPrompt);
 
         // Save the uploaded image and get its URL
         let imageUrl;
         try {
-            imageUrl = await uploadBuffer(imageFile.buffer, 'face-upload');
+            const uploadResult = await uploadBuffer(imageFile.buffer, 'face-upload');
+            imageUrl = uploadResult.url || uploadResult.publicUrl; // Handle different response formats
             console.log('Image saved successfully:', imageUrl);
         } catch (uploadError) {
             console.error('Error saving image:', uploadError);
-            throw new Error('Failed to process uploaded image');
+            return res.status(500).json({ error: 'Failed to process uploaded image', details: uploadError.message });
         }
 
-        console.log('Running face-to-sticker model with image:', imageUrl);
+        if (!imageUrl) {
+            return res.status(500).json({ error: 'Failed to get image URL after upload' });
+        }
+
+        console.log('Running face-to-sticker model with image URL:', imageUrl);
 
         // Run the face-to-sticker model
         const output = await replicate.run(
@@ -1557,57 +1781,97 @@ app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) 
                     width: 1024,
                     height: 1024,
                     prompt: fullPrompt,
-                    upscale: false,
-                    upscale_steps: 10,
-                    negative_prompt: "",
-                    prompt_strength: 4.5,
-                    ip_adapter_noise: 0.5,
-                    ip_adapter_weight: 0.2,
-                    instant_id_strength: 0.7
+                    negative_prompt: "ugly, blurry, poor quality, distorted",
+                    guidance_scale: 7.5
                 }
             }
         );
 
-        console.log('Model output received:', output);
+        console.log('Model output:', output);
 
-        if (!output || !output[0]) {
-            throw new Error('No output received from model');
+        if (!output || !Array.isArray(output) || output.length === 0) {
+            return res.status(500).json({ error: 'Invalid output from face-to-sticker model' });
         }
 
-        // Download and save the generated image to our bucket
+        // Save the generated image
         const generatedImageUrl = output[0];
-        console.log('Downloading generated image from:', generatedImageUrl);
-        
-        const response = await axios({
-            method: 'GET',
-            url: generatedImageUrl,
-            responseType: 'arraybuffer'
-        });
+        console.log('Saving generated image:', generatedImageUrl);
+        const savedImage = await saveImageFromUrl(generatedImageUrl);
 
-        // Save to bucket
-        const savedImageUrl = await uploadBuffer(response.data, 'generations');
-        console.log('Saved generated image to bucket:', savedImageUrl);
-
-        // Save the generation with the bucket URL
-        const generation = await Generation.create({
+        // Create generation record
+        const generation = new Generation({
+            userId: req.userId,
             prompt: fullPrompt,
-            imageUrl: savedImageUrl,
-            modelId: "face-to-sticker",
-            userId: req.userId
+            imageUrl: savedImage.publicUrl,
+            originalImage: imageUrl,
+            status: 'completed',
+            type: 'face-to-sticker'
         });
 
-        console.log('Generation saved successfully');
+        await generation.save();
+        console.log('Generation saved:', generation);
 
-        res.json({ 
+        // Deduct credits if not unlimited
+        let updatedCredits = user.credits;
+        if (user.credits !== 123654) {
+            // Fetch fresh user data to avoid race conditions
+            const freshUser = await User.findById(req.userId);
+            if (!freshUser) {
+                throw new Error('User not found during credit deduction');
+            }
+            
+            if (freshUser.credits < 1 && freshUser.credits !== 123654) {
+                throw new Error('Insufficient credits');
+            }
+
+            freshUser.credits -= 1;
+            await freshUser.save();
+            updatedCredits = freshUser.credits;
+            console.log('Credits deducted. New balance:', updatedCredits);
+            
+            // Dispatch credit update event through websocket if available
+            if (req.app.get('io')) {
+                req.app.get('io').to(req.userId).emit('creditsUpdated', { credits: updatedCredits });
+            }
+        }
+
+        res.json({
             success: true,
-            imageUrl: savedImageUrl,
-            generationId: generation._id
+            imageUrl: savedImage.publicUrl,
+            generationId: generation._id,
+            credits: updatedCredits
+        });
+
+    } catch (error) {
+        console.error('Error in face-to-sticker:', error);
+        res.status(500).json({ 
+            success: false,
+            error: error.message || 'Failed to process image',
+            details: error.stack
+        });
+    }
+});
+
+// Upload endpoint for canvas images
+app.post('/api/upload', auth, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        console.log('Uploading canvas image, size:', req.file.size);
+
+        // Save the uploaded file
+        const result = await uploadBuffer(req.file.buffer, 'canvas-uploads');
+
+        res.json({
+            imageUrl: result.publicUrl
         });
     } catch (error) {
-        console.error('Face to sticker generation error:', error);
+        console.error('Error uploading image:', error);
         res.status(500).json({ 
-            success: false, 
-            error: error.message || 'Failed to generate sticker'
+            error: 'Failed to upload image',
+            details: error.message
         });
     }
 });
@@ -1668,3 +1932,67 @@ async function startServer(initialPort = 3005) {
 }
 
 startServer();
+
+app.post('/api/admin/set-credits', auth, adminAuth, async (req, res) => {
+    try {
+        const { userId, credits } = req.body;
+        const creditsNum = parseInt(credits, 10);
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Set the credits
+        user.credits = creditsNum;
+        
+        // Set hideCredits based on credit value
+        user.hideCredits = creditsNum === 456321;
+
+        await user.save();
+
+        // Update credits display through websocket if available
+        if (req.app.get('io')) {
+            req.app.get('io').to(userId).emit('creditsUpdated', { 
+                credits: user.credits,
+                hideCredits: user.hideCredits
+            });
+        }
+
+        res.json({ 
+            success: true, 
+            credits: user.credits,
+            hideCredits: user.hideCredits,
+            displayText: user.credits === 456321 ? 'HIDE' : (user.credits === 123654 ? 'Unlimited' : user.credits)
+        });
+    } catch (error) {
+        console.error('Error setting credits:', error);
+        res.status(500).json({ error: 'Failed to set credits' });
+    }
+});
+
+app.get('/api/auth/user', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Set hideCredits flag based on credit value
+        const hideCredits = user.credits === 456321;
+
+        res.json({
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            credits: user.credits,
+            hideCredits: hideCredits,
+            role: user.role,
+            stickersGenerated: user.stickersGenerated || 0,
+            collectionsCount: user.collectionsCount || 0
+        });
+    } catch (error) {
+        console.error('Error getting user:', error);
+        res.status(500).json({ error: 'Failed to get user info' });
+    }
+});

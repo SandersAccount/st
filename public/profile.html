@@ -602,6 +602,19 @@
                     <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
                 </div>
             </div>
+            <div class="info-section">
+                <h3>Usage Details</h3>
+                <div class="usage-stats">
+                    <div class="stat-item">
+                        <label>Stickers Generated:</label>
+                        <span id="stickersGenerated">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <label>Collections:</label>
+                        <span id="collectionsCount">0</span>
+                    </div>
+                </div>
+            </div>
             <div class="credits-history">
                 <h3>Credits History</h3>
                 <table class="history-table">
@@ -662,30 +675,6 @@
             <div class="subscription-content">
                 <div class="subscription-info">
                     <div class="info-section">
-                        <h3>Credits</h3>
-                        <div class="credits-info">
-                            <span id="subscriptionCredits" class="credits-amount">0</span>
-                            <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
-                        </div>
-                    </div>
-                    <div class="info-section">
-                        <h3>Usage Details</h3>
-                        <div class="usage-stats">
-                            <div class="stat-item">
-                                <label>Credits:</label>
-                                <span id="currentCredits">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Stickers Generated:</label>
-                                <span id="stickersGenerated">0</span>
-                            </div>
-                            <div class="stat-item">
-                                <label>Collections:</label>
-                                <span id="collectionsCount">0</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="info-section">
                         <h3>Plan Features</h3>
                         <ul class="plan-features">
                             <li>1000 credits</li>
@@ -727,9 +716,6 @@
     // Initialize topbar and credits popup
     document.addEventListener('DOMContentLoaded', async () => {
         await createTopbar();
-        loadUserProfile();
-        // Set Credits tab as active by default
-        switchTab('credits');
     });
 </script>
 
@@ -740,6 +726,198 @@
     }
 </script>
     <script src="/js/credits-popup.js"></script>
+    <script>
+        let lastKnownCredits = 0;
+        let isInitialLoad = true;
+
+        function formatCredits(credits) {
+            return credits === 123654 ? 'Unlimited' : credits;
+        }
+
+        function updateAllCreditDisplays(credits, force = false) {
+            // Only update if:
+            // 1. It's a forced update
+            // 2. It's the initial load
+            // 3. We're getting a non-zero value
+            if (!force && !isInitialLoad && credits === 0 && lastKnownCredits > 0) {
+                return;
+            }
+
+            const formattedCredits = formatCredits(credits);
+            lastKnownCredits = credits;
+            isInitialLoad = false;
+            
+            // Update profile credits
+            const totalCreditsElement = document.getElementById('totalCredits');
+            if (totalCreditsElement) {
+                totalCreditsElement.textContent = formattedCredits;
+            }
+        }
+
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+                
+                if (data && data.user) {
+                    // Force update credit displays on initial load
+                    const credits = data.user.credits || 0;
+                    updateAllCreditDisplays(credits, true);
+                    
+                    // Update other user info
+                    document.getElementById('nickname').textContent = data.user.name || '';
+                    document.getElementById('email').textContent = data.user.email || '';
+                    
+                    // Load credit history
+                    loadCreditHistory();
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+            }
+        }
+
+        // Initialize page - only call loadUserProfile once
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load user data
+            loadUserProfile();
+            
+            // Switch to credits tab if specified in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab) {
+                switchTab(tab);
+            }
+        });
+
+        // Listen for credit updates from topbar
+        window.addEventListener('creditsUpdated', (event) => {
+            if (event.detail && typeof event.detail.credits !== undefined) {
+                updateAllCreditDisplays(event.detail.credits);
+            }
+        });
+    </script>
+    <script>
+        // Get user data including hideCredits status
+        async function getUserData() {
+            try {
+                const response = await fetch('/api/auth/user', {
+                    credentials: 'include'
+                });
+                const userData = await response.json();
+                return userData;
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                return null;
+            }
+        }
+
+        async function initializePage() {
+            try {
+                const response = await fetch('/api/auth/user', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load user data');
+                }
+
+                const userData = await response.json();
+                console.log('User data:', userData); // Debug log
+                
+                // Hide all credit-related elements if hideCredits is true
+                if (userData.credits === 456321) {
+                    console.log('Hiding credits UI'); // Debug log
+                    
+                    // Hide credit tab button
+                    const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
+                    if (creditTab) {
+                        creditTab.style.display = 'none';
+                        console.log('Credit tab hidden');
+                    }
+                    
+                    // Hide credits content section
+                    const creditsContent = document.getElementById('credits');
+                    if (creditsContent) {
+                        creditsContent.style.display = 'none';
+                        console.log('Credits content hidden');
+                    }
+                    
+                    // Hide upgrade/buy credits buttons
+                    document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
+                        if (btn) {
+                            btn.style.display = 'none';
+                            console.log('Buy credits button hidden');
+                        }
+                    });
+
+                    // Switch to personal info tab if credits tab was active
+                    if (creditsContent?.classList.contains('active')) {
+                        switchTab('personal');
+                        console.log('Switched to personal tab');
+                    }
+
+                    // Hide credits info in topbar
+                    const creditsContainer = document.querySelector('.credits-container');
+                    if (creditsContainer) {
+                        creditsContainer.style.display = 'none';
+                        console.log('Credits container hidden');
+                    }
+
+                    // Hide credits popup if it exists
+                    const creditsPopup = document.getElementById('creditsPopup');
+                    if (creditsPopup) {
+                        creditsPopup.style.display = 'none';
+                        console.log('Credits popup hidden');
+                    }
+                } else {
+                    // Show credits and update values if not hidden
+                    await loadUserData(userData);
+                }
+
+            } catch (error) {
+                console.error('Error initializing page:', error);
+            }
+        }
+
+        async function loadUserData(userData) {
+            // Update user info
+            const nameElement = document.getElementById('userName');
+            const emailElement = document.getElementById('userEmail');
+            if (nameElement) nameElement.textContent = userData.name || '';
+            if (emailElement) emailElement.textContent = userData.email || '';
+
+            // Update credits if not hidden
+            if (userData.credits !== 456321) {
+                const totalCredits = document.getElementById('totalCredits');
+                if (totalCredits) {
+                    totalCredits.textContent = userData.credits === 123654 ? 'Unlimited' : userData.credits;
+                }
+
+                // Show credit elements
+                const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
+                const creditsContent = document.getElementById('credits');
+                const creditsContainer = document.querySelector('.credits-container');
+                
+                if (creditTab) creditTab.style.display = 'block';
+                if (creditsContent) creditsContent.style.display = 'block';
+                if (creditsContainer) creditsContainer.style.display = 'flex';
+
+                // Show upgrade/buy credits buttons
+                document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
+                    if (btn) btn.style.display = 'inline-block';
+                });
+            }
+
+            // Update usage stats
+            const stickersGenerated = document.getElementById('stickersGenerated');
+            const collectionsCount = document.getElementById('collectionsCount');
+            if (stickersGenerated) stickersGenerated.textContent = userData.stickersGenerated || 0;
+            if (collectionsCount) collectionsCount.textContent = userData.collectionsCount || 0;
+        }
+
+        // Call initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePage);
+    </script>
     <script>
         // Load credit products configuration
         let creditProducts;
@@ -857,7 +1035,7 @@
                 const user = await response.json();
                 
                 // Update all credit displays
-                const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+                const creditDisplays = ['totalCredits'];
                 creditDisplays.forEach(id => {
                     const element = document.getElementById(id);
                     if (element) {
@@ -884,7 +1062,7 @@
 
         // Update all credit displays when credits change
         function updateAllCreditDisplays(credits) {
-            const creditDisplays = ['totalCredits', 'subscriptionCredits', 'currentCredits'];
+            const creditDisplays = ['totalCredits'];
             creditDisplays.forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
@@ -902,30 +1080,27 @@
 
         async function loadCreditHistory() {
             try {
-                const response = await fetch('/api/profile');
-                const user = await response.json();
+                const response = await fetch('/api/credits/history');
+                const history = await response.json();
                 
-                const historyTable = document.getElementById('creditsHistory');
-                if (!user.creditHistory || user.creditHistory.length === 0) {
-                    historyTable.innerHTML = '<tr><td colspan="4">No credit history available</td></tr>';
-                    return;
+                const tbody = document.getElementById('creditsHistory');
+                tbody.innerHTML = ''; // Clear existing history
+                
+                if (Array.isArray(history)) {
+                    history.forEach(item => {
+                        const row = document.createElement('tr');
+                        const timestamp = new Date(item.timestamp);
+                        const formattedAmount = item.amount === 123654 ? 'Unlimited' : 
+                                                  (item.amount > 0 ? '+' : '') + item.amount;
+                        row.innerHTML = `
+                            <td>${timestamp.toLocaleString()}</td>
+                            <td>${item.type}</td>
+                            <td class="${item.amount > 0 ? 'credit-add' : 'credit-use'}">${formattedAmount}</td>
+                            <td>${item.details}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
                 }
-
-                historyTable.innerHTML = user.creditHistory.map(item => {
-                    const date = new Date(item.purchasedAt).toLocaleString();
-                    const type = 'Added'; // All entries are purchases
-                    const amount = item.credits || 100; // Default to 100 for older entries
-                    const details = item.product || 'Credit Purchase';
-                    
-                    return `
-                        <tr>
-                            <td>${date}</td>
-                            <td class="credit-add">${type}</td>
-                            <td>+${amount}</td>
-                            <td>${details}</td>
-                        </tr>
-                    `;
-                }).join('');
             } catch (error) {
                 console.error('Error loading credit history:', error);
                 const historyTable = document.getElementById('creditsHistory');

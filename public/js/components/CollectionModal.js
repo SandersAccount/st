@@ -1,4 +1,4 @@
-import { showToast } from './Toast.js';
+import { Toast, showToast } from './Toast.js';
 
 export class CollectionModal extends HTMLElement {
     constructor() {
@@ -282,14 +282,18 @@ export class CollectionModal extends HTMLElement {
     }
 
     setImageData(data) {
-        if (!data || !data.imageUrl) {
+        // Accept either a string URL or an object with imageUrl
+        const imageUrl = typeof data === 'string' ? data : data?.imageUrl;
+        
+        if (!imageUrl) {
             console.error('Invalid image data:', data);
             return;
         }
+        
         this.imageData = {
-            imageUrl: data.imageUrl,
-            prompt: data.prompt || '',
-            generationId: data.generationId || ''
+            imageUrl,
+            prompt: typeof data === 'object' ? data.prompt || '' : '',
+            generationId: typeof data === 'object' ? data.generationId || '' : ''
         };
     }
 
