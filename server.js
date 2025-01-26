@@ -620,7 +620,7 @@ app.get('/api/download', async (req, res) => {
 });
 
 // Background removal endpoint
-app.post('/api/images/bgremove', async (req, res) => {
+app.post('/api/images/bgremove', auth, async (req, res) => {
     try {
         const { imageUrl } = req.body;
         console.log('Background removal request received for image:', imageUrl);
