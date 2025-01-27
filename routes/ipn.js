@@ -248,7 +248,7 @@ router.post('/credits/notification', async (req, res) => {
                 });
                 // Only add credits if not unlimited
                 if (user.credits !== 123654) {
-                    user.credits = (user.credits || 0) + 100;
+                    user.credits = (user.credits || 0) + 250;
                 }
                 await user.save();
             } else {
