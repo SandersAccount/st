@@ -406,7 +406,7 @@ app.post('/api/generate', auth, async (req, res) => {
 
         // Create the generation record
         const generation = new Generation({
-            userId: mongoose.Types.ObjectId(req.userId),
+            userId: new mongoose.Types.ObjectId(req.userId),
             prompt: fullPrompt,
             imageUrl: savedImage.publicUrl,
             status: 'completed'
@@ -536,7 +536,7 @@ app.post('/api/images/upscale', auth, async (req, res) => {
 
         // Create a new generation record for the upscaled image
         const generation = new Generation({
-            userId: mongoose.Types.ObjectId(req.userId),
+            userId: new mongoose.Types.ObjectId(req.userId),
             prompt: 'Upscaled',
             imageUrl: savedImage.publicUrl,
             originalImage: imageUrl,
@@ -1812,7 +1812,7 @@ app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) 
 
         // Create generation record
         const generation = new Generation({
-            userId: req.userId,
+            userId: new mongoose.Types.ObjectId(req.userId),
             prompt: fullPrompt,
             imageUrl: savedImage.publicUrl,
             originalImage: imageUrl,
