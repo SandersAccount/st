@@ -1896,37 +1896,28 @@ app.get('*', (req, res) => {
     res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
+import { initializeVariables } from './routes/variables.js';
+
 async function startServer(initialPort = 3005) {
     try {
-        // Initialize variables first
-        const { initializeVariables } = await import('./routes/variables.js');
+        // Initialize variables in the database
         await initializeVariables();
-        console.log('Variables initialized successfully');
+        
+        const server = app.listen(initialPort, () => {
+            console.log(`Server is running on port ${initialPort}`);
+        });
 
-        let currentPort = initialPort;
-        let maxAttempts = 10;
-        let attempts = 0;
-
-        while (attempts < maxAttempts) {
-            try {
-                app.listen(currentPort, () => {
-                    console.log(`Server is running on port ${currentPort}`);
-                    console.log(`Access the app at http://localhost:${currentPort}`);
-                });
-                break;
-            } catch (error) {
-                console.log(`Port ${currentPort} is in use, trying next port...`);
-                currentPort++;
-                attempts++;
+        server.on('error', (error) => {
+            if (error.code === 'EADDRINUSE') {
+                console.log(`Port ${initialPort} is in use, trying ${initialPort + 1}`);
+                server.close();
+                startServer(initialPort + 1);
             }
-        }
+        });
 
-        if (attempts === maxAttempts) {
-            console.error('Could not find an available port after multiple attempts');
-            process.exit(1);
-        }
+        return server;
     } catch (error) {
-        console.error('Error starting server:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
     }
 }

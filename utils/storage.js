@@ -17,19 +17,73 @@ const b2 = new B2({
 const BUCKET_NAME = 'stickers-replicate-app';
 const BUCKET_ID = 'a2338a969ede490f92410d1d';
 let authData = null;
+let authTimer = null;
+const TOKEN_REFRESH_INTERVAL = 23 * 60 * 60 * 1000; // Refresh 1 hour before 24-hour expiration
+
+async function refreshAuth() {
+    try {
+        console.log('Refreshing B2 authorization...');
+        authData = await b2.authorize();
+        console.log('B2 authorization refreshed successfully');
+        
+        // Schedule next refresh
+        scheduleTokenRefresh();
+    } catch (error) {
+        console.error('Failed to refresh B2 authorization:', error);
+        // Clear auth data so next request will try to reauthorize
+        authData = null;
+        // Try again in 5 minutes if refresh failed
+        setTimeout(refreshAuth, 5 * 60 * 1000);
+    }
+}
+
+function scheduleTokenRefresh() {
+    // Clear any existing timer
+    if (authTimer) {
+        clearTimeout(authTimer);
+    }
+    
+    // Schedule next refresh
+    authTimer = setTimeout(refreshAuth, TOKEN_REFRESH_INTERVAL);
+}
 
 async function ensureAuthorized() {
     try {
-        if (!authData) {
-            console.log('Starting B2 authorization...');
-            
-            if (!process.env.B2_APPLICATION_KEY_ID || !process.env.B2_APPLICATION_KEY) {
-                throw new Error('B2 credentials not found in environment variables');
+        // If we have authData, try to use it first
+        if (authData) {
+            try {
+                // Test the auth by making a simple API call
+                await b2.listBuckets();
+                return authData;
+            } catch (error) {
+                // If we get a 401, clear authData to force reauthorization
+                if (error.response?.status === 401 || error.response?.data?.code === 'expired_auth_token') {
+                    console.log('Auth token expired, reauthorizing...');
+                    authData = null;
+                    // Clear any existing refresh timer
+                    if (authTimer) {
+                        clearTimeout(authTimer);
+                        authTimer = null;
+                    }
+                } else {
+                    throw error;
+                }
             }
-
-            authData = await b2.authorize();
-            console.log('B2 authorization successful');
         }
+
+        // Either no authData or it was expired
+        console.log('Starting B2 authorization...');
+        
+        if (!process.env.B2_APPLICATION_KEY_ID || !process.env.B2_APPLICATION_KEY) {
+            throw new Error('B2 credentials not found in environment variables');
+        }
+
+        authData = await b2.authorize();
+        console.log('B2 authorization successful');
+        
+        // Schedule refresh for this new token
+        scheduleTokenRefresh();
+        
         return authData;
     } catch (error) {
         console.error('B2 authorization failed:', {

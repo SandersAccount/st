@@ -192,7 +192,7 @@ export function createProfilePage(container) {
 
 async function loadUserData() {
     try {
-        const response = await fetch('/api/user/profile', {
+        const response = await fetch('/api/profile', {
             credentials: 'include'
         });
         const userData = await response.json();

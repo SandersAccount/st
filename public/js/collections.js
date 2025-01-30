@@ -309,3 +309,26 @@ function handleMoveToTrash(generation) {
     console.log('Move to Trash selected', generation);
     // Add your Move to Trash handling logic here
 };
+
+// Handle image deletion
+document.addEventListener('deleteImage', async (e) => {
+    try {
+        const { imageUrl, generationId } = e.detail;
+        const response = await fetch(`/api/generations/${generationId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete image');
+        }
+
+        // Refresh the collections and generations display
+        loadCollections();
+        loadGenerations();
+        showToast('Image deleted successfully', 'success');
+    } catch (error) {
+        console.error('Error deleting image:', error);
+        showToast('Failed to delete image', 'error');
+    }
+});
