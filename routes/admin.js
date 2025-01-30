@@ -416,7 +416,7 @@ router.post('/update-product', async (req, res) => {
             });
         } else if (cleanProductId === stickerLabProductId) {
             if (user.credits !== 123654) { // Only add if not unlimited
-                user.credits = (user.credits || 0) + 100;
+                user.credits = (user.credits || 0) + 250;
             }
             user.creditHistory.push({
                 product: 'StickerLab (Manual Update)',

@@ -82,7 +82,7 @@ router.post('/notification', async (req, res) => {
         // Handle credit assignment
         if (itemNumber === stickerLabProductId) {
             // Logic for handling StickerLab purchase
-            user.credits = (user.credits || 0) + 100;
+            user.credits = (user.credits || 0) + 250;
             console.log('User gained access to StickerLab and received 100 credits:', user.email);
         } else {
             // Handle credit package purchase
@@ -248,7 +248,7 @@ router.post('/credits/notification', async (req, res) => {
                 });
                 // Only add credits if not unlimited
                 if (user.credits !== 123654) {
-                    user.credits = (user.credits || 0) + 100;
+                    user.credits = (user.credits || 0) + 250;
                 }
                 await user.save();
             } else {
