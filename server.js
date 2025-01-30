@@ -406,7 +406,7 @@ app.post('/api/generate', auth, async (req, res) => {
 
         // Create the generation record
         const generation = new Generation({
-            userId: req.userId,
+            userId: mongoose.Types.ObjectId(req.userId),
             prompt: fullPrompt,
             imageUrl: savedImage.publicUrl,
             status: 'completed'
@@ -536,7 +536,7 @@ app.post('/api/images/upscale', auth, async (req, res) => {
 
         // Create a new generation record for the upscaled image
         const generation = new Generation({
-            userId: req.userId,
+            userId: mongoose.Types.ObjectId(req.userId),
             prompt: 'Upscaled',
             imageUrl: savedImage.publicUrl,
             originalImage: imageUrl,
@@ -969,26 +969,58 @@ app.get('/api/generations/recent', auth, async (req, res) => {
     }
 });
 
-// Delete a generation
+// Delete generation endpoint
 app.delete('/api/generations/:id', auth, async (req, res) => {
     try {
+        const { id } = req.params;
+        
+        // Log the incoming request
+        console.log('Delete request:', {
+            id,
+            userId: req.userId,
+            headers: req.headers
+        });
+
+        // Check database connection
+        if (mongoose.connection.readyState !== 1) {
+            console.error('Database not connected. Current state:', mongoose.connection.readyState);
+            return res.status(500).json({ error: 'Database connection error' });
+        }
+
+        // Validate ObjectId
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            console.error('Invalid generation ID format:', id);
+            return res.status(400).json({ error: 'Invalid generation ID format' });
+        }
+
+        // Log the query we're about to make
+        console.log('Searching for generation with query:', {
+            _id: id,
+            userId: req.userId
+        });
+
+        // First find the generation to verify ownership
         const generation = await Generation.findOne({
-            _id: req.params.id,
+            _id: id,
             userId: req.userId
         });
 
         if (!generation) {
+            console.error('Generation not found or unauthorized. User:', req.userId);
+            // Log all generations for this user to help debug
+            const userGenerations = await Generation.find({ userId: req.userId });
+            console.log('All generations for user:', userGenerations.map(g => g._id));
             return res.status(404).json({ error: 'Generation not found' });
         }
 
-        // Move to trash by updating the status
-        generation.status = 'deleted';
-        await generation.save();
+        // Delete the generation
+        await Generation.deleteOne({ _id: id });
+        console.log('Generation deleted successfully');
 
-        res.json({ message: 'Generation moved to trash' });
+        res.json({ success: true, message: 'Generation deleted successfully' });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to move generation to trash' });
+        console.error('Error deleting generation:', error);
+        res.status(500).json({ error: 'Failed to delete generation', details: error.message });
     }
 });
 
@@ -1174,26 +1206,6 @@ app.delete('/api/collections/:collectionId/images/:imageId', auth, async (req, r
     } catch (error) {
         console.error('Error removing image from collection:', error);
         res.status(500).json({ error: 'Failed to remove image from collection' });
-    }
-});
-
-// Delete generation - ensure user can only delete their own
-app.delete('/api/generations/:id', auth, async (req, res) => {
-    try {
-        const generation = await Generation.findOne({
-            _id: req.params.id,
-            userId: req.userId
-        });
-
-        if (!generation) {
-            return res.status(404).json({ error: 'Generation not found' });
-        }
-
-        await generation.deleteOne();
-        res.json({ success: true });
-    } catch (error) {
-        console.error('Error deleting generation:', error);
-        res.status(500).json({ error: 'Failed to delete generation' });
     }
 });
 

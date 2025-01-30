@@ -1,46 +1,175 @@
+import { createTopbar } from './components/Topbar.js';
+
+// Initialize everything after DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     createTopbar(); 
     loadCollections();
     loadGenerations();
-    setupCollectionModal();
-});
 
-function setupCollectionModal() {
-    const modal = document.getElementById('newCollectionModal');
-    const form = document.getElementById('newCollectionForm');
-    const cancelBtn = document.getElementById('cancelCollectionBtn');
-
-    // Close modal when clicking cancel
-    cancelBtn.addEventListener('click', () => {
-        modal.classList.remove('active');
-    });
-
-    // Handle form submission
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const title = document.getElementById('collectionTitle').value;
+    // Add delete image event listener
+    document.addEventListener('deleteImage', async (e) => {
+        const { imageUrl, generationId } = e.detail;
         
-        try {
-        const response = await fetch('/api/collections', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-                body: JSON.stringify({ title })
-            });
-
-            if (!response.ok) throw new Error('Failed to create collection');
-            
-            const collection = await response.json();
-            modal.classList.remove('active');
-            form.reset();
-            loadCollections(); // Refresh collections
-        } catch (error) {
-            console.error('Error creating collection:', error);
+        // Remove any existing confirmation modals first
+        const existingModal = document.querySelector('.confirmation-modal');
+        if (existingModal) {
+            existingModal.remove();
         }
+        
+        // Create and show a custom confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'confirmation-modal';
+        modal.innerHTML = `
+            <div class="confirmation-content">
+                <h3>Delete Image</h3>
+                <p>Are you sure you want to delete this image? This action cannot be undone.</p>
+                <div class="confirmation-buttons">
+                    <button class="cancel-btn">Cancel</button>
+                    <button class="delete-btn">Delete</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Add styles if they don't exist
+        if (!document.querySelector('#confirmation-modal-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'confirmation-modal-styles';
+            styles.textContent = `
+                .confirmation-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+                .confirmation-content {
+                    background: #1a1a1a;
+                    padding: 24px;
+                    border-radius: 8px;
+                    max-width: 400px;
+                    width: 90%;
+                }
+                .confirmation-buttons {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 12px;
+                    margin-top: 24px;
+                }
+                .cancel-btn, .delete-btn {
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    border: none;
+                    cursor: pointer;
+                }
+                .cancel-btn {
+                    background: #333;
+                    color: #fff;
+                }
+                .delete-btn {
+                    background: #dc3545;
+                    color: #fff;
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+
+        // Handle cancel
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        cancelBtn.addEventListener('click', () => modal.remove());
+
+        // Handle delete
+        const deleteBtn = modal.querySelector('.delete-btn');
+        deleteBtn.addEventListener('click', async () => {
+            try {
+                deleteBtn.disabled = true; // Prevent double-clicks
+                const response = await fetch(`/api/generations/${generationId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete image');
+                }
+
+                // Remove the modal immediately after successful deletion
+                modal.remove();
+
+                // Show success message
+                showToast('Image deleted successfully', 'success');
+
+                // Remove the image card from the UI
+                const card = document.querySelector(`[generation-id="${generationId}"]`);
+                if (card) {
+                    card.remove();
+                }
+
+                // Refresh the collections
+                loadCollections();
+            } catch (error) {
+                console.error('Error deleting image:', error);
+                showToast('Failed to delete image', 'error');
+                deleteBtn.disabled = false; // Re-enable the button on error
+            } finally {
+                // Ensure the modal is removed even if there was an error
+                modal.remove();
+            }
+        });
     });
-}
+
+    // Setup new collection modal handlers
+    const newCollectionModal = document.getElementById('newCollectionModal');
+    const newCollectionForm = document.getElementById('newCollectionForm');
+    const cancelCollectionBtn = document.getElementById('cancelCollectionBtn');
+
+    if (newCollectionModal && newCollectionForm && cancelCollectionBtn) {
+        // Close modal when clicking cancel
+        cancelCollectionBtn.addEventListener('click', () => {
+            newCollectionModal.style.display = 'none';
+        });
+
+        // Handle form submission
+        newCollectionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('collectionTitle').value;
+            
+            try {
+                const response = await fetch('/api/collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ title })
+                });
+
+                if (!response.ok) throw new Error('Failed to create collection');
+                
+                showToast('Collection created successfully', 'success');
+                newCollectionModal.style.display = 'none';
+                newCollectionForm.reset();
+                loadCollections(); // Refresh collections
+            } catch (error) {
+                console.error('Error creating collection:', error);
+                showToast('Failed to create collection', 'error');
+            }
+        });
+
+        // Show modal when clicking create new collection
+        document.querySelector('.create-new')?.addEventListener('click', () => {
+            newCollectionModal.style.display = 'block';
+        });
+    }
+});
 
 async function loadCollections() {
     try {
@@ -53,6 +182,7 @@ async function loadCollections() {
         displayCollections(collections);
     } catch (error) {
         console.error('Error loading collections:', error);
+        showToast('Failed to load collections', 'error');
     }
 }
 
@@ -144,7 +274,7 @@ function createNewCollectionCard() {
 
 async function loadGenerations() {
     try {
-        const response = await fetch('/api/generations', {
+        const response = await fetch('/api/generations/recent', {
             credentials: 'include'
         });
         if (!response.ok) throw new Error('Failed to load generations');
@@ -180,9 +310,11 @@ function displayGenerations(generations, collections) {
             console.log('Card created, setting attributes...');
             card.setAttribute('image-url', generation.imageUrl);
             card.setAttribute('prompt', generation.prompt || '');
+            card.setAttribute('generation-id', generation._id); 
             console.log('Attributes set:', {
                 imageUrl: card.getAttribute('image-url'),
-                prompt: card.getAttribute('prompt')
+                prompt: card.getAttribute('prompt'),
+                id: card.getAttribute('generation-id')
             });
             grid.appendChild(card);
             displayedImageUrls.add(generation.imageUrl);
@@ -197,20 +329,56 @@ document.querySelector('.new-collection')?.addEventListener('click', () => {
     console.log('Create new collection clicked');
 });
 
-export function handleAddToCollection(imageData) {
-    const collectionModal = document.querySelector('collection-modal');
-    if (!collectionModal) {
-        console.error('Collection modal not found');
-        return;
-    }
-
-    // Set the image data and show the modal
-    collectionModal.setImageData(imageData);
-    collectionModal.show();
-
-    // Log for debugging
-    console.log('Showing collection modal with image data:', imageData);
+// Dropdown option handlers
+function handlePrompt(generation) {
+    console.log('View Prompt selected', generation);
+    // Add your prompt viewing logic here
 }
+
+function handleAddToCollection(generation) {
+    console.log('Add to Collection selected', generation);
+    const imageData = {
+        imageUrl: generation.imageUrl,
+        prompt: generation.prompt,
+        generationId: generation._id
+    };
+    
+    // Show collection selector modal
+    const collectionModal = document.createElement('collection-modal');
+    collectionModal.setAttribute('image-data', JSON.stringify(imageData));
+    document.body.appendChild(collectionModal);
+}
+
+function handleDownload(generation) {
+    console.log('Download selected', generation);
+    // Add your download logic here
+}
+
+function handleUpscale(generation) {
+    console.log('Upscale selected', generation);
+    // Add your upscale logic here
+}
+
+function handleMoveToTrash(generation) {
+    console.log('Move to Trash selected', generation);
+    // Add your Move to Trash handling logic here
+}
+
+function showToast(message, type) {
+    const toast = document.createElement('toast-notification');
+    document.body.appendChild(toast);
+    toast.show(message, type);
+}
+
+// Export functions that need to be accessed from other modules
+export {
+    handleAddToCollection,
+    handlePrompt,
+    handleDownload,
+    handleUpscale,
+    handleMoveToTrash,
+    showToast
+};
 
 export async function addToExistingCollection(collectionId, imageData) {
     try {
@@ -241,94 +409,3 @@ export async function addToExistingCollection(collectionId, imageData) {
         toast.show('Failed to add image to collection', 'error');
     }
 }
-
-function createImageOptionsDropdown(generation) {
-    const dropdown = document.createElement('select');
-    dropdown.className = 'image-options-dropdown';
-    dropdown.innerHTML = `
-        <option value="prompt">Prompt</option>
-        <option value="add-to-collection">Add to Collection</option>
-        <option value="download">Download</option>
-        <option value="upscale">Upscale</option>
-        <option value="move-to-trash">Move to Trash</option>
-    `;
-    dropdown.addEventListener('change', (e) => {
-        const selectedOption = e.target.value;
-        switch (selectedOption) {
-            case 'prompt':
-                handlePrompt(generation);
-                break;
-            case 'add-to-collection':
-                handleAddToCollection(generation);
-                break;
-            case 'download':
-                handleDownload(generation);
-                break;
-            case 'upscale':
-                handleUpscale(generation);
-                break;
-            case 'move-to-trash':
-                handleMoveToTrash(generation);
-                break;
-        }
-    });
-    return dropdown;
-};
-
-// Placeholder functions for dropdown options
-function handlePrompt(generation) {
-    console.log('Prompt selected', generation);
-    // Add your prompt handling logic here
-};
-
-function handleAddToCollection(generation) {
-    console.log('Add to Collection selected', generation);
-    const collectionModal = document.querySelector('collection-modal');
-    if (!collectionModal) {
-        console.error('Collection modal not found');
-        return;
-    }
-    collectionModal.setImageData({
-        imageUrl: generation.imageUrl,
-        prompt: generation.prompt
-    });
-    collectionModal.show();
-};
-
-function handleDownload(generation) {
-    console.log('Download selected', generation);
-    // Add your download handling logic here
-};
-
-function handleUpscale(generation) {
-    console.log('Upscale selected', generation);
-    // Add your upscale handling logic here
-};
-
-function handleMoveToTrash(generation) {
-    console.log('Move to Trash selected', generation);
-    // Add your Move to Trash handling logic here
-};
-
-// Handle image deletion
-document.addEventListener('deleteImage', async (e) => {
-    try {
-        const { imageUrl, generationId } = e.detail;
-        const response = await fetch(`/api/generations/${generationId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to delete image');
-        }
-
-        // Refresh the collections and generations display
-        loadCollections();
-        loadGenerations();
-        showToast('Image deleted successfully', 'success');
-    } catch (error) {
-        console.error('Error deleting image:', error);
-        showToast('Failed to delete image', 'error');
-    }
-});
