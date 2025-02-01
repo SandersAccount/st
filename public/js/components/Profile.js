@@ -70,17 +70,17 @@ export function createProfilePage(container) {
                     <div class="usage-item">
                         <label>Credits</label>
                         <div class="usage-value">
-                            <span class="remaining-credits">Loading...</span>
+                            <span class="remaining-credits">0</span>
                             <span>Credits</span>
                         </div>
                     </div>
                     <div class="usage-item">
                         <label>Sticker Generations</label>
-                        <div class="usage-value">-</div>
+                        <div class="usage-value">0</div>
                     </div>
                     <div class="usage-item">
                         <label>Collections</label>
-                        <div class="usage-value">-</div>
+                        <div class="usage-value">0</div>
                     </div>
                 </div>
                 <button class="buy-credits-btn">Buy more credits</button>
@@ -134,7 +134,7 @@ export function createProfilePage(container) {
         </div>
         <div class="credits-amount">
             <div class="leaf-icon">🍃</div>
-            <span class="amount">Loading...</span>
+            <span class="amount">0</span>
             <button class="buy-credits-btn">Buy Credits</button>
         </div>
         <div class="credits-alert">
@@ -192,13 +192,7 @@ export function createProfilePage(container) {
 
 async function loadUserData() {
     try {
-        // Show loading state
-        const creditsElements = document.querySelectorAll('.remaining-credits, .credits .amount');
-        creditsElements.forEach(el => {
-            if (el) el.textContent = 'Loading...';
-        });
-
-        const response = await fetch('/api/profile', {
+        const response = await fetch('/api/user/profile', {
             credentials: 'include'
         });
         const userData = await response.json();
@@ -209,24 +203,12 @@ async function loadUserData() {
         document.querySelector('.personal-info .field-value:last-of-type').textContent = userData.email || '';
 
         // Update subscription info
-        const creditsValue = userData.credits === 123654 ? 'Unlimited' : (userData.credits || 0);
-        document.querySelectorAll('.remaining-credits, .credits .amount').forEach(el => {
-            if (el) el.textContent = creditsValue;
-        });
-        
-        // Update other subscription info
+        document.querySelector('.remaining-credits').textContent = userData.credits || 0;
         document.querySelector('.renewal-date').textContent = new Date(userData.subscription?.renewalDate).toLocaleDateString() || 'N/A';
 
         // Update credits info
+        document.querySelector('.credits .amount').textContent = userData.credits || 0;
         document.querySelector('.expiring-credits').textContent = userData.expiringCredits || 0;
-
-        // Update usage stats
-        if (userData.stickersGenerated !== undefined) {
-            document.querySelector('.usage-item:nth-child(2) .usage-value').textContent = userData.stickersGenerated;
-        }
-        if (userData.collectionsCount !== undefined) {
-            document.querySelector('.usage-item:nth-child(3) .usage-value').textContent = userData.collectionsCount;
-        }
 
         // Load credit history
         if (userData.creditHistory) {
@@ -241,9 +223,5 @@ async function loadUserData() {
         }
     } catch (error) {
         console.error('Error loading user data:', error);
-        // Show error state
-        document.querySelectorAll('.remaining-credits, .credits .amount').forEach(el => {
-            if (el) el.textContent = 'Error loading';
-        });
     }
 }

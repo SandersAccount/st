@@ -572,34 +572,6 @@
         .close-button:hover {
             color: #fff;
         }
-
-        /* Add these styles to fix credits display */
-        .credits-amount {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 16px;
-        }
-
-        #totalCredits {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff1cf7;
-        }
-
-        .credits-info {
-            background: #1e1e1e;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .credits-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
@@ -621,17 +593,13 @@
         <!-- Credits Tab -->
         <div id="credits" class="tab-content active">
             <div class="credits-header">
-                <h2>Credits</h2>
+                <h2>My Credits</h2>
                 <a href="#" style="color: #ff1cf7;">About Credits?</a>
             </div>
             <div class="credits-info">
-                <div class="credits-header">
-                    <h2>Credits</h2>
-                    <div class="credits-amount">
-                        <span id="totalCredits">Loading...</span>
-                        <span>Credits Available</span>
-                        <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
-                    </div>
+                <div class="current-credits">
+                    <span id="totalCredits">0</span> Credits Available
+                    <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
                 </div>
             </div>
             <div class="info-section">
@@ -759,113 +727,60 @@
 </script>
     <script src="/js/credits-popup.js"></script>
     <script>
-        // Single source of truth for credits management
-        const CreditsManager = {
-            lastKnownCredits: null,
-            UNLIMITED_CREDITS: 123654,
-            HIDE_CREDITS: 456321,
-            isUpdating: false, // Add flag to prevent recursive updates
+        let lastKnownCredits = 0;
+        let isInitialLoad = true;
+
+        function formatCredits(credits) {
+            return credits === 123654 ? 'Unlimited' : credits;
+        }
+
+        function updateAllCreditDisplays(credits, force = false) {
+            // Only update if:
+            // 1. It's a forced update
+            // 2. It's the initial load
+            // 3. We're getting a non-zero value
+            if (!force && !isInitialLoad && credits === 0 && lastKnownCredits > 0) {
+                return;
+            }
+
+            const formattedCredits = formatCredits(credits);
+            lastKnownCredits = credits;
+            isInitialLoad = false;
             
-            // Update credits display
-            updateDisplay(credits, force = false) {
-                // Prevent recursive updates
-                if (this.isUpdating) return;
-                this.isUpdating = true;
+            // Update profile credits
+            const totalCreditsElement = document.getElementById('totalCredits');
+            if (totalCreditsElement) {
+                totalCreditsElement.textContent = formattedCredits;
+            }
+        }
 
-                try {
-                    // Don't update if we already have a value and getting 0 (unless forced)
-                    if (!force && this.lastKnownCredits !== null && credits === 0 && this.lastKnownCredits > 0) {
-                        return;
-                    }
-
-                    const totalCreditsElement = document.getElementById('totalCredits');
-                    if (totalCreditsElement) {
-                        if (credits === this.UNLIMITED_CREDITS) {
-                            totalCreditsElement.textContent = 'Unlimited';
-                        } else if (credits === this.HIDE_CREDITS) {
-                            totalCreditsElement.style.display = 'none';
-                        } else {
-                            totalCreditsElement.textContent = credits;
-                        }
-                        this.lastKnownCredits = credits;
-
-                        // Only dispatch event if it's a forced update or new value
-                        if (force || credits !== this.lastKnownCredits) {
-                            window.dispatchEvent(new CustomEvent('creditsUpdated', {
-                                detail: { credits: credits }
-                            }));
-                        }
-                    }
-                } finally {
-                    this.isUpdating = false;
-                }
-            },
-
-            // Load user data
-            async loadUserData() {
-                try {
-                    const response = await fetch('/api/auth/user', {
-                        credentials: 'include'
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load user data');
-                    }
-
-                    const userData = await response.json();
-                    
-                    // Update credits display
-                    this.updateDisplay(userData.credits || 0, true);
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/api/auth/me');
+                const data = await response.json();
+                
+                if (data && data.user) {
+                    // Force update credit displays on initial load
+                    const credits = data.user.credits || 0;
+                    updateAllCreditDisplays(credits, true);
                     
                     // Update other user info
-                    const nameElement = document.getElementById('userName');
-                    const emailElement = document.getElementById('userEmail');
-                    if (nameElement) nameElement.textContent = userData.name || '';
-                    if (emailElement) emailElement.textContent = userData.email || '';
-
-                    // Handle credits visibility
-                    if (userData.credits === this.HIDE_CREDITS) {
-                        this.hideCreditsUI();
-                    } else {
-                        loadCreditHistory();
-                    }
-                } catch (error) {
-                    console.error('Error loading user data:', error);
-                    this.updateDisplay('Error', true);
+                    document.getElementById('nickname').textContent = data.user.name || '';
+                    document.getElementById('email').textContent = data.user.email || '';
+                    
+                    // Load credit history
+                    loadCreditHistory();
                 }
-            },
-
-            // Hide all credits-related UI
-            hideCreditsUI() {
-                ['button[onclick="switchTab(\'credits\')"]', '#credits', 
-                 '.btn-upgrade', '.buy-credits-btn', '.credits-container', 
-                 '#creditsPopup'].forEach(selector => {
-                    const elements = document.querySelectorAll(selector);
-                    elements.forEach(el => {
-                        if (el) el.style.display = 'none';
-                    });
-                });
-
-                // Switch to personal tab if credits tab was active
-                const creditsContent = document.getElementById('credits');
-                if (creditsContent?.classList.contains('active')) {
-                    switchTab('personal');
-                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
             }
-        };
+        }
 
-        // Initialize once when page loads
+        // Initialize page - only call loadUserProfile once
         document.addEventListener('DOMContentLoaded', () => {
-            // Load initial data
-            CreditsManager.loadUserData();
+            // Load user data
+            loadUserProfile();
             
-            // Listen for credit updates from any source
-            window.addEventListener('creditsUpdated', (event) => {
-                if (event.detail && typeof event.detail.credits !== 'undefined') {
-                    CreditsManager.updateDisplay(event.detail.credits);
-                }
-            });
-
             // Switch to credits tab if specified in URL
             const urlParams = new URLSearchParams(window.location.search);
             const tab = urlParams.get('tab');
@@ -873,6 +788,135 @@
                 switchTab(tab);
             }
         });
+
+        // Listen for credit updates from topbar
+        window.addEventListener('creditsUpdated', (event) => {
+            if (event.detail && typeof event.detail.credits !== undefined) {
+                updateAllCreditDisplays(event.detail.credits);
+            }
+        });
+    </script>
+    <script>
+        // Get user data including hideCredits status
+        async function getUserData() {
+            try {
+                const response = await fetch('/api/auth/user', {
+                    credentials: 'include'
+                });
+                const userData = await response.json();
+                return userData;
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                return null;
+            }
+        }
+
+        async function initializePage() {
+            try {
+                const response = await fetch('/api/auth/user', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load user data');
+                }
+
+                const userData = await response.json();
+                console.log('User data:', userData); // Debug log
+                
+                // Hide all credit-related elements if hideCredits is true
+                if (userData.credits === 456321) {
+                    console.log('Hiding credits UI'); // Debug log
+                    
+                    // Hide credit tab button
+                    const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
+                    if (creditTab) {
+                        creditTab.style.display = 'none';
+                        console.log('Credit tab hidden');
+                    }
+                    
+                    // Hide credits content section
+                    const creditsContent = document.getElementById('credits');
+                    if (creditsContent) {
+                        creditsContent.style.display = 'none';
+                        console.log('Credits content hidden');
+                    }
+                    
+                    // Hide upgrade/buy credits buttons
+                    document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
+                        if (btn) {
+                            btn.style.display = 'none';
+                            console.log('Buy credits button hidden');
+                        }
+                    });
+
+                    // Switch to personal info tab if credits tab was active
+                    if (creditsContent?.classList.contains('active')) {
+                        switchTab('personal');
+                        console.log('Switched to personal tab');
+                    }
+
+                    // Hide credits info in topbar
+                    const creditsContainer = document.querySelector('.credits-container');
+                    if (creditsContainer) {
+                        creditsContainer.style.display = 'none';
+                        console.log('Credits container hidden');
+                    }
+
+                    // Hide credits popup if it exists
+                    const creditsPopup = document.getElementById('creditsPopup');
+                    if (creditsPopup) {
+                        creditsPopup.style.display = 'none';
+                        console.log('Credits popup hidden');
+                    }
+                } else {
+                    // Show credits and update values if not hidden
+                    await loadUserData(userData);
+                }
+
+            } catch (error) {
+                console.error('Error initializing page:', error);
+            }
+        }
+
+        async function loadUserData(userData) {
+            // Update user info
+            const nameElement = document.getElementById('userName');
+            const emailElement = document.getElementById('userEmail');
+            if (nameElement) nameElement.textContent = userData.name || '';
+            if (emailElement) emailElement.textContent = userData.email || '';
+
+            // Update credits if not hidden
+            if (userData.credits !== 456321) {
+                const totalCredits = document.getElementById('totalCredits');
+                if (totalCredits) {
+                    totalCredits.textContent = userData.credits === 123654 ? 'Unlimited' : userData.credits;
+                }
+
+                // Show credit elements
+                const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
+                const creditsContent = document.getElementById('credits');
+                const creditsContainer = document.querySelector('.credits-container');
+                
+                if (creditTab) creditTab.style.display = 'block';
+                if (creditsContent) creditsContent.style.display = 'block';
+                if (creditsContainer) creditsContainer.style.display = 'flex';
+
+                // Show upgrade/buy credits buttons
+                document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
+                    if (btn) btn.style.display = 'inline-block';
+                });
+            }
+
+            // Update usage stats
+            const stickersGenerated = document.getElementById('stickersGenerated');
+            const collectionsCount = document.getElementById('collectionsCount');
+            if (stickersGenerated) stickersGenerated.textContent = userData.stickersGenerated || 0;
+            if (collectionsCount) collectionsCount.textContent = userData.collectionsCount || 0;
+        }
+
+        // Call initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePage);
     </script>
     <script>
         // Load credit products configuration

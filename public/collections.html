@@ -232,33 +232,6 @@
             gap: 8px;
             color: #4CAF50;
         }
-
-        /* Modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .modal-buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 1rem;
-        }
     </style>
 </head>
 <body>
@@ -290,28 +263,237 @@
         </div>
     </div>
 
-    <!-- Collection Modal -->
-    <div id="newCollectionModal" class="modal">
-        <div class="modal-content">
-            <h2>Create New Collection</h2>
-            <form id="newCollectionForm">
-                <input type="text" id="collectionTitle" placeholder="Collection Title" required>
-                <div class="modal-buttons">
-                    <button type="button" id="cancelCollectionBtn">Cancel</button>
-                    <button type="submit">Create</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <collection-modal></collection-modal>
     <toast-notification></toast-notification>
 
     <script type="module">
+        import { createTopbar } from '/js/components/Topbar.js';
         import { GenerationCard } from '/js/components/GenerationCard.js';
         import '/js/components/CollectionModal.js';
         import '/js/components/Toast.js';
-        import '/js/collections.js';  // This will handle initialization
+
+        // Initialize topbar
+        createTopbar();
+
+        // Get DOM elements
+        const collectionsGrid = document.querySelector('.collections-grid');
+        const collectionModal = document.querySelector('collection-modal');
+
+        // Add DOMContentLoaded handler with delayed refresh
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Collections page loaded, loading initial content...');
+            loadContent().then(() => {
+                // Add a delayed refresh to ensure thumbnails are loaded
+                setTimeout(async () => {
+                    try {
+                        const response = await fetch('/api/collections');
+                        const collections = await response.json();
+                        
+                        // Update each collection's thumbnails
+                        collections.forEach(collection => {
+                            const card = document.querySelector(`[data-collection-id="${collection._id}"]`);
+                            if (card) {
+                                const previewContainer = card.querySelector('.collection-preview');
+                                const previewUrls = collection.images?.map(img => img.imageUrl).reverse() || [];
+                                
+                                previewContainer.innerHTML = `
+                                    ${previewUrls.slice(0, 4).map(imageUrl => `
+                                        <div class="preview-image loading">
+                                            <img 
+                                                src="${imageUrl}" 
+                                                alt=""
+                                                onload="this.parentElement.classList.remove('loading')"
+                                                onerror="this.parentElement.classList.remove('loading'); this.parentElement.classList.add('error')"
+                                            >
+                                        </div>
+                                    `).join('')}
+                                    ${Array(Math.max(0, 4 - previewUrls.length)).fill(
+                                        '<div class="preview-image empty"></div>'
+                                    ).join('')}
+                                `;
+                                
+                                // Update the image count
+                                const countElement = card.querySelector('.collection-count');
+                                countElement.textContent = `${collection.stats?.imageCount || 0} images`;
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error refreshing collections:', error);
+                    }
+                }, 3000); // 3 second delay
+            });
+        });
+
+        // Create collection square click handler
+        document.addEventListener('click', (e) => {
+            const createNewBtn = e.target.closest('.create-new');
+            if (createNewBtn) {
+                e.preventDefault();
+                collectionModal.showNewCollectionDialog();
+            }
+        });
+
+        // Listen for collection creation and image addition events
+        window.addEventListener('collectionCreated', () => {
+            loadContent();
+        });
+
+        // Listen for image addition events
+        window.addEventListener('imageAddedToCollection', (event) => {
+            console.log('Image added to collection event received:', event.detail);
+            // Force a small delay before reloading to ensure the server has processed the change
+            setTimeout(() => {
+                console.log('Reloading collections after image add');
+                loadContent().then(() => {
+                    // Add another small delay for a second refresh to ensure thumbnails are loaded
+                    setTimeout(() => {
+                        console.log('Refreshing thumbnails after image add');
+                        fetch('/api/collections')
+                            .then(response => response.json())
+                            .then(collections => {
+                                collections.forEach(collection => {
+                                    const card = document.querySelector(`[data-collection-id="${collection._id}"]`);
+                                    if (card) {
+                                        const previewContainer = card.querySelector('.collection-preview');
+                                        const previewUrls = collection.images?.map(img => img.imageUrl).reverse() || [];
+                                        
+                                        previewContainer.innerHTML = `
+                                            ${previewUrls.slice(0, 4).map(imageUrl => `
+                                                <div class="preview-image loading">
+                                                    <img 
+                                                        src="${imageUrl}" 
+                                                        alt=""
+                                                        onload="this.parentElement.classList.remove('loading')"
+                                                        onerror="this.parentElement.classList.remove('loading'); this.parentElement.classList.add('error')"
+                                                    >
+                                                </div>
+                                            `).join('')}
+                                            ${Array(Math.max(0, 4 - previewUrls.length)).fill(
+                                                '<div class="preview-image empty"></div>'
+                                            ).join('')}
+                                        `;
+                                        
+                                        // Update the image count
+                                        const countElement = card.querySelector('.collection-count');
+                                        countElement.textContent = `${collection.stats?.imageCount || 0} images`;
+                                    }
+                                });
+                            })
+                            .catch(error => console.error('Error refreshing thumbnails:', error));
+                    }, 1000);
+                });
+            }, 500);
+        });
+
+        // Add event listener for upscale events
+        document.addEventListener('imageUpscaled', (e) => {
+            const { generationId, newImageUrl } = e.detail;
+            const card = document.querySelector(`generation-card[generation-id="${generationId}"]`);
+            if (card) {
+                card.setAttribute('image-url', newImageUrl);
+                card.setAttribute('is-upscaled', 'true');
+            }
+        });
+
+        // Load collections and recent generations
+        async function loadContent() {
+            try {
+                // Load collections
+                const collectionsResponse = await fetch('/api/collections');
+                const collections = await collectionsResponse.json();
+                console.log('Collections data:', collections);
+                console.log('First collection:', collections[0]);
+                console.log('First collection images:', collections[0]?.images);
+
+                // Clear existing collections except the create-new button
+                Array.from(collectionsGrid.children).forEach(child => {
+                    if (!child.classList.contains('create-new')) {
+                        child.remove();
+                    }
+                });
+
+                collections.forEach(collection => {
+                    const card = document.createElement('div');
+                    card.className = 'collection-card';
+                    card.setAttribute('data-collection-id', collection._id);
+                    card.onclick = () => window.location.href = `/collection/${collection._id}`;
+                    
+                    // Extract image URLs from images array and reverse to show newest first
+                    const previewUrls = collection.images?.map(img => img.imageUrl) || [];
+                    const recentPreviewUrls = previewUrls.reverse(); // Reverse to show newest first
+                    
+                    card.innerHTML = `
+                        <div class="collection-preview">
+                            ${recentPreviewUrls.slice(0, 4).map(imageUrl => `
+                                <div class="preview-image loading">
+                                    <img 
+                                        src="${imageUrl}" 
+                                        alt=""
+                                        onload="this.parentElement.classList.remove('loading')"
+                                        onerror="this.parentElement.classList.remove('loading'); this.parentElement.classList.add('error')"
+                                    >
+                                </div>
+                            `).join('')}
+                            ${Array(Math.max(0, 4 - recentPreviewUrls.length)).fill(
+                                '<div class="preview-image empty"></div>'
+                            ).join('')}
+                        </div>
+                        <div class="collection-info">
+                            <h3 class="collection-name">${collection.title}</h3>
+                            <p class="collection-count">${collection.stats?.imageCount || 0} images</p>
+                        </div>
+                    `;
+                    
+                    collectionsGrid.appendChild(card);
+                });
+
+                // Load recent generations
+                const generationsResponse = await fetch('/api/generations/recent');
+                const generations = await generationsResponse.json();
+                console.log('Received generations:', generations);
+                
+                const generationsGrid = document.querySelector('.generations-grid');
+                generationsGrid.innerHTML = ''; // Clear existing generations
+                
+                function createGenerationCard(generation) {
+                    console.log('Creating card for generation:', generation);
+                    const card = document.createElement('generation-card');
+                    card.setAttribute('image-url', generation.imageUrl);
+                    card.setAttribute('prompt', generation.prompt);
+                    card.setAttribute('generation-id', generation._id);
+                    card.setAttribute('is-upscaled', generation.isUpscaled || false);
+                    console.log('Card attributes set:', {
+                        imageUrl: generation.imageUrl,
+                        prompt: generation.prompt,
+                        isUpscaled: generation.isUpscaled,
+                        id: generation._id
+                    });
+                    return card;
+                }
+                
+                // Filter out duplicates based on imageUrl and sort by creation time
+                const uniqueGenerations = generations
+                    .filter((generation, index, self) =>
+                        index === self.findIndex((g) => g.imageUrl === generation.imageUrl)
+                    )
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort newest first
+                
+                uniqueGenerations.forEach(generation => {
+                    console.log('Creating card for generation:', generation);
+                    const card = createGenerationCard(generation);
+                    generationsGrid.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error:', error);
+                const toast = document.createElement('toast-notification');
+                document.body.appendChild(toast);
+                toast.show('Failed to load content', 'error');
+            }
+        }
+
+        // Initial load
+        loadContent();
     </script>
 </body>
 </html>

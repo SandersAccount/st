@@ -406,7 +406,7 @@ app.post('/api/generate', auth, async (req, res) => {
 
         // Create the generation record
         const generation = new Generation({
-            userId: new mongoose.Types.ObjectId(req.userId),
+            userId: req.userId,
             prompt: fullPrompt,
             imageUrl: savedImage.publicUrl,
             status: 'completed'
@@ -536,7 +536,7 @@ app.post('/api/images/upscale', auth, async (req, res) => {
 
         // Create a new generation record for the upscaled image
         const generation = new Generation({
-            userId: new mongoose.Types.ObjectId(req.userId),
+            userId: req.userId,
             prompt: 'Upscaled',
             imageUrl: savedImage.publicUrl,
             originalImage: imageUrl,
@@ -969,58 +969,26 @@ app.get('/api/generations/recent', auth, async (req, res) => {
     }
 });
 
-// Delete generation endpoint
+// Delete a generation
 app.delete('/api/generations/:id', auth, async (req, res) => {
     try {
-        const { id } = req.params;
-        
-        // Log the incoming request
-        console.log('Delete request:', {
-            id,
-            userId: req.userId,
-            headers: req.headers
-        });
-
-        // Check database connection
-        if (mongoose.connection.readyState !== 1) {
-            console.error('Database not connected. Current state:', mongoose.connection.readyState);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
-
-        // Validate ObjectId
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            console.error('Invalid generation ID format:', id);
-            return res.status(400).json({ error: 'Invalid generation ID format' });
-        }
-
-        // Log the query we're about to make
-        console.log('Searching for generation with query:', {
-            _id: id,
-            userId: req.userId
-        });
-
-        // First find the generation to verify ownership
         const generation = await Generation.findOne({
-            _id: id,
+            _id: req.params.id,
             userId: req.userId
         });
 
         if (!generation) {
-            console.error('Generation not found or unauthorized. User:', req.userId);
-            // Log all generations for this user to help debug
-            const userGenerations = await Generation.find({ userId: req.userId });
-            console.log('All generations for user:', userGenerations.map(g => g._id));
             return res.status(404).json({ error: 'Generation not found' });
         }
 
-        // Delete the generation
-        await Generation.deleteOne({ _id: id });
-        console.log('Generation deleted successfully');
+        // Move to trash by updating the status
+        generation.status = 'deleted';
+        await generation.save();
 
-        res.json({ success: true, message: 'Generation deleted successfully' });
+        res.json({ message: 'Generation moved to trash' });
     } catch (error) {
-        console.error('Error deleting generation:', error);
-        res.status(500).json({ error: 'Failed to delete generation', details: error.message });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Failed to move generation to trash' });
     }
 });
 
@@ -1206,6 +1174,26 @@ app.delete('/api/collections/:collectionId/images/:imageId', auth, async (req, r
     } catch (error) {
         console.error('Error removing image from collection:', error);
         res.status(500).json({ error: 'Failed to remove image from collection' });
+    }
+});
+
+// Delete generation - ensure user can only delete their own
+app.delete('/api/generations/:id', auth, async (req, res) => {
+    try {
+        const generation = await Generation.findOne({
+            _id: req.params.id,
+            userId: req.userId
+        });
+
+        if (!generation) {
+            return res.status(404).json({ error: 'Generation not found' });
+        }
+
+        await generation.deleteOne();
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting generation:', error);
+        res.status(500).json({ error: 'Failed to delete generation' });
     }
 });
 
@@ -1812,7 +1800,7 @@ app.post('/api/face-to-sticker', auth, upload.single('image'), async (req, res) 
 
         // Create generation record
         const generation = new Generation({
-            userId: new mongoose.Types.ObjectId(req.userId),
+            userId: req.userId,
             prompt: fullPrompt,
             imageUrl: savedImage.publicUrl,
             originalImage: imageUrl,
@@ -1908,28 +1896,37 @@ app.get('*', (req, res) => {
     res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 
-import { initializeVariables } from './routes/variables.js';
-
 async function startServer(initialPort = 3005) {
     try {
-        // Initialize variables in the database
+        // Initialize variables first
+        const { initializeVariables } = await import('./routes/variables.js');
         await initializeVariables();
-        
-        const server = app.listen(initialPort, () => {
-            console.log(`Server is running on port ${initialPort}`);
-        });
+        console.log('Variables initialized successfully');
 
-        server.on('error', (error) => {
-            if (error.code === 'EADDRINUSE') {
-                console.log(`Port ${initialPort} is in use, trying ${initialPort + 1}`);
-                server.close();
-                startServer(initialPort + 1);
+        let currentPort = initialPort;
+        let maxAttempts = 10;
+        let attempts = 0;
+
+        while (attempts < maxAttempts) {
+            try {
+                app.listen(currentPort, () => {
+                    console.log(`Server is running on port ${currentPort}`);
+                    console.log(`Access the app at http://localhost:${currentPort}`);
+                });
+                break;
+            } catch (error) {
+                console.log(`Port ${currentPort} is in use, trying next port...`);
+                currentPort++;
+                attempts++;
             }
-        });
+        }
 
-        return server;
+        if (attempts === maxAttempts) {
+            console.error('Could not find an available port after multiple attempts');
+            process.exit(1);
+        }
     } catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('Error starting server:', error);
         process.exit(1);
     }
 }

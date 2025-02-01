@@ -1,6 +1,6 @@
 import { showToast } from './Toast.js';
 
-export function createImageCard(imageUrl, prompt, generationId) {
+export function createImageCard(imageUrl, prompt) {
     const card = document.createElement('div');
     card.className = 'image-card';
     
@@ -167,18 +167,16 @@ export function createImageCard(imageUrl, prompt, generationId) {
         toast.show('Upscale feature coming soon!', 'info');
     });
 
-    // Handle delete button click
     const deleteBtn = card.querySelector('.delete');
-    deleteBtn?.addEventListener('click', async (e) => {
+    deleteBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        
-        // Dispatch delete event to be handled by collections.js
-        const event = new CustomEvent('deleteImage', {
-            detail: { imageUrl, generationId },
-            bubbles: true
-        });
-        card.dispatchEvent(event);
+        if (confirm('Are you sure you want to delete this image?')) {
+            card.remove();
+            const toast = document.createElement('toast-notification');
+            document.body.appendChild(toast);
+            toast.show('Image deleted', 'success');
+        }
     });
 
     return card;

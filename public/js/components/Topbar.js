@@ -103,33 +103,12 @@ export async function createTopbar() {
                         creditsIcon.className = 'fas fa-coins';
 
                         const creditsCount = document.createElement('span');
-                        creditsCount.textContent = 'Loading...';
+                        creditsCount.textContent = user.credits === 123654 ? 'Unlimited' : (user.credits || '0');
                         creditsCount.id = 'topbarCredits';
 
                         creditsIndicator.appendChild(creditsIcon);
                         creditsIndicator.appendChild(creditsCount);
                         rightSection.appendChild(creditsIndicator);
-
-                        // Update credits display and notify other components
-                        const updateCredits = (credits) => {
-                            const formattedCredits = credits === 123654 ? 'Unlimited' : (credits || '0');
-                            creditsCount.textContent = formattedCredits;
-                            
-                            // Dispatch event for other components
-                            window.dispatchEvent(new CustomEvent('creditsUpdated', {
-                                detail: { credits: credits }
-                            }));
-                        };
-
-                        // Initial update
-                        updateCredits(user.credits);
-
-                        // Listen for credits updates
-                        window.addEventListener('creditsUpdated', (event) => {
-                            if (event.detail && typeof event.detail.credits !== 'undefined') {
-                                updateCredits(event.detail.credits);
-                            }
-                        });
                     }
 
                     // Upgrade button (only show if credits !== 456321)

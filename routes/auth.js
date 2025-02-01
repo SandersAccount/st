@@ -24,39 +24,51 @@ router.post('/register', [
         // Check if the email was used to purchase StickerLab
         const stickerLabPurchase = await User.findOne({ email: email });
         console.log('Found user:', stickerLabPurchase);
+        
+        let initialCredits = 5; // Default credits for new users
+        let creditHistory = [];
+
         if (stickerLabPurchase) {
             console.log('User credit history:', stickerLabPurchase.creditHistory);
+            // Check if user has StickerLab purchase
+            const hasStickerLab = stickerLabPurchase.creditHistory?.some(h => h.product === 'StickerLab');
+            console.log('Has StickerLab purchase:', hasStickerLab);
+
+            if (hasStickerLab) {
+                // User exists and has StickerLab, update their info
+                console.log('Updating existing user');
+                stickerLabPurchase.name = name;
+                stickerLabPurchase.password = password; // This will trigger the password hashing middleware
+                stickerLabPurchase.registered = true; // Mark as registered
+                await stickerLabPurchase.save();
+                
+                const token = jwt.sign({ userId: stickerLabPurchase._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: 'strict',
+                    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+                });
+                return res.status(200).json({ user: { id: stickerLabPurchase._id, email: stickerLabPurchase.email, name: stickerLabPurchase.name } });
+            }
         }
 
-        // Check if user has StickerLab purchase
-        const hasStickerLab = stickerLabPurchase?.creditHistory?.some(h => h.product === 'StickerLab');
-        console.log('Has StickerLab purchase:', hasStickerLab);
+        // Create new user with initial credits
+        console.log('Creating new user with initial credits:', initialCredits);
+        creditHistory.push({
+            product: 'Initial Credits',
+            purchasedAt: new Date(),
+            credits: initialCredits
+        });
 
-        if (!hasStickerLab) {
-            return res.status(400).json({ error: 'Please, register with the same email that you used to purchase the StickerLab.' });
-        }
-
-        // User exists and has StickerLab, update their info
-        if (stickerLabPurchase) {
-            console.log('Updating existing user');
-            stickerLabPurchase.name = name;
-            stickerLabPurchase.password = password; // This will trigger the password hashing middleware
-            stickerLabPurchase.registered = true; // Mark as registered
-            await stickerLabPurchase.save();
-            
-            const token = jwt.sign({ userId: stickerLabPurchase._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-            res.cookie('token', token, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'strict',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-            });
-            return res.status(200).json({ user: { id: stickerLabPurchase._id, email: stickerLabPurchase.email, name: stickerLabPurchase.name } });
-        }
-
-        // This shouldn't happen since we already found the user above, but just in case
-        console.log('Creating new user');
-        let user = new User({ email, password, name });
+        let user = new User({ 
+            email, 
+            password, 
+            name,
+            credits: initialCredits,
+            creditHistory: creditHistory,
+            registered: true
+        });
         await user.save();
         
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });

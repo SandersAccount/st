@@ -60,16 +60,10 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed, 
         default: 0,
         get: function(v) {
-            if (v === 123654 || v === "unlimited") {
-                return "unlimited";
-            }
-            return v === null ? 0 : v;
+            return v === 123654 ? "unlimited" : v; 
         },
         set: function(v) {
-            if (v === "unlimited" || v === 123654) {
-                return 123654;
-            }
-            return v === null ? 0 : v;
+            return v === "unlimited" ? 123654 : v; 
         }
     },
     hideCredits: {
