@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.js';
 import subscriptionRoutes from './routes/subscription.js';
 import adminRoutes from './routes/admin.js';
 import creditsRoutes from './routes/credits.js';
+import imagesRoutes from './routes/images.js';
 import Style from './models/Style.js';
 import multer from 'multer';
 import fs from 'fs';
@@ -336,6 +337,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', auth, adminAuth, adminRoutes); // Add both auth middlewares in correct order
 app.use('/api/credits', creditsRoutes);
+app.use('/api/images', imagesRoutes);
 app.use('/api/ipn', ipnRouter);
 app.use('/api/variables', variablesRouter);
 

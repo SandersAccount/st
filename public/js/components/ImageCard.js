@@ -1,6 +1,6 @@
 import { showToast } from './Toast.js';
 
-export function createImageCard(imageUrl, prompt) {
+export function createImageCard(imageUrl, prompt, imageId) {
     const card = document.createElement('div');
     card.className = 'image-card';
     
@@ -168,14 +168,27 @@ export function createImageCard(imageUrl, prompt) {
     });
 
     const deleteBtn = card.querySelector('.delete');
-    deleteBtn.addEventListener('click', (e) => {
+    deleteBtn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (confirm('Are you sure you want to delete this image?')) {
-            card.remove();
-            const toast = document.createElement('toast-notification');
-            document.body.appendChild(toast);
-            toast.show('Image deleted', 'success');
+        try {
+            const response = await fetch(`/api/images/${imageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                card.remove();
+                const toast = document.createElement('toast-notification');
+                document.body.appendChild(toast);
+                toast.show('Image deleted', 'success');
+            } else {
+                console.error('Failed to delete image');
+            }
+        } catch (error) {
+            console.error('Error deleting image:', error);
         }
     });
 

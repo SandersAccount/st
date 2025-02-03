@@ -282,7 +282,7 @@ export class GenerationCard extends HTMLElement {
                         this.handleEdit();
                         break;
                     case 'delete':
-                        this.handleDelete();
+                        await this.handleDelete();
                         break;
                 }
             });
@@ -463,18 +463,22 @@ export class GenerationCard extends HTMLElement {
         }
     }
 
-    handleDelete() {
-        if (confirm('Are you sure you want to delete this image?')) {
-            // Dispatch delete event
-            const event = new CustomEvent('deleteImage', {
-                bubbles: true,
-                composed: true,
-                detail: {
-                    imageUrl: this._imageUrl,
-                    generationId: this._id
+    async handleDelete() {
+        try {
+            const response = await fetch(`/api/images/${this._id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
                 }
             });
-            this.dispatchEvent(event);
+
+            if (response.ok) {
+                this.remove();
+            } else {
+                console.error('Failed to delete image');
+            }
+        } catch (error) {
+            console.error('Error deleting image:', error);
         }
     }
 

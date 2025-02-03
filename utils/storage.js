@@ -302,3 +302,17 @@ export async function uploadBuffer(buffer, prefix = '') {
         throw error;
     }
 }
+
+const storage = {
+    BUCKET_NAME,
+    BUCKET_ID,
+    refreshAuth,
+    scheduleTokenRefresh,
+    ensureAuthorized,
+    saveImageFromUrl,
+    deleteImage,
+    getImagePublicUrl,
+    uploadBuffer
+};
+
+export default storage;
