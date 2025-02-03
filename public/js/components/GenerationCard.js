@@ -10,6 +10,7 @@ export class GenerationCard extends HTMLElement {
         this._isUpscaled = false;
         this._id = '';
         this._isUpscaling = false;
+        this._isDownloading = false;
         this.connectedCallback();
     }
 
@@ -434,6 +435,10 @@ export class GenerationCard extends HTMLElement {
     }
 
     async handleDownload() {
+        // Prevent multiple downloads
+        if (this._isDownloading) return;
+        this._isDownloading = true;
+
         try {
             showToast('Preparing download...', 'info');
 
@@ -455,11 +460,12 @@ export class GenerationCard extends HTMLElement {
             a.click();
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
-
             showToast('Download complete!', 'success');
         } catch (error) {
-            console.error('Download error:', error);
+            console.error('Error downloading image:', error);
             showToast('Failed to download image', 'error');
+        } finally {
+            this._isDownloading = false;
         }
     }
 
