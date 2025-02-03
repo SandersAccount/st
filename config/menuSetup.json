@@ -1,0 +1,10 @@
+{
+  "enabledActions": [
+    "upscale",
+    "addToCollection",
+    "download",
+    "bgRemove",
+    "edit",
+    "deleteImage"
+  ]
+}

@@ -130,8 +130,8 @@ export async function initializeVariables() {
         for (const variable of defaultVariables) {
             await Variable.findOneAndUpdate(
                 { key: variable.key },
-                variable,
-                { upsert: true, new: true }
+                { $setOnInsert: variable },
+                { upsert: true }
             );
         }
         console.log('Variables initialized successfully');
