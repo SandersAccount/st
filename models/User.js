@@ -59,11 +59,20 @@ const userSchema = new mongoose.Schema({
     credits: { 
         type: mongoose.Schema.Types.Mixed, 
         default: 0,
+        required: true,
         get: function(v) {
-            return v === 123654 ? "unlimited" : v; 
+            if (v === null || v === undefined) return 0;
+            return v === 123654 ? "unlimited" : v;
         },
         set: function(v) {
-            return v === "unlimited" ? 123654 : v; 
+            if (v === null || v === undefined) return 0;
+            return v === "unlimited" ? 123654 : parseInt(v) || 0;
+        },
+        validate: {
+            validator: function(v) {
+                return v !== null && v !== undefined;
+            },
+            message: 'Credits cannot be null or undefined'
         }
     },
     hideCredits: {
@@ -119,6 +128,31 @@ userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next();
+});
+
+// Ensure credits are never null before saving
+userSchema.pre('save', function(next) {
+    if (this.credits === null || this.credits === undefined) {
+        this.credits = 0;
+    }
+    next();
+});
+
+// Ensure credits are never null before updating
+userSchema.pre('updateOne', function(next) {
+    const update = this.getUpdate();
+    if (update && (update.credits === null || update.credits === undefined)) {
+        update.credits = 0;
+    }
+    next();
+});
+
+userSchema.pre('findOneAndUpdate', function(next) {
+    const update = this.getUpdate();
+    if (update && (update.credits === null || update.credits === undefined)) {
+        update.credits = 0;
+    }
     next();
 });
 
