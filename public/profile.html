@@ -598,7 +598,7 @@
             </div>
             <div class="credits-info">
                 <div class="current-credits">
-                    <span id="totalCredits">0</span> Credits Available
+                    <span id="totalCredits">Loading...</span> Credits Available
                     <button onclick="showCreditsPopup()" class="buy-credits-btn">Buy more Credits</button>
                 </div>
             </div>
@@ -727,19 +727,17 @@
 </script>
     <script src="/js/credits-popup.js"></script>
     <script>
-        let lastKnownCredits = 0;
+        let lastKnownCredits = null;
         let isInitialLoad = true;
 
         function formatCredits(credits) {
+            if (credits === null) return 'Loading...';
             return credits === 123654 ? 'Unlimited' : credits;
         }
 
         function updateAllCreditDisplays(credits, force = false) {
-            // Only update if:
-            // 1. It's a forced update
-            // 2. It's the initial load
-            // 3. We're getting a non-zero value
-            if (!force && !isInitialLoad && credits === 0 && lastKnownCredits > 0) {
+            // Don't update if we're getting a 0 value after having a valid value
+            if (!force && !isInitialLoad && credits === 0 && lastKnownCredits !== null && lastKnownCredits > 0) {
                 return;
             }
 
@@ -754,65 +752,25 @@
             }
         }
 
-        async function loadUserProfile() {
-            try {
-                const response = await fetch('/api/auth/me');
-                const data = await response.json();
-                
-                if (data && data.user) {
-                    // Force update credit displays on initial load
-                    const credits = data.user.credits || 0;
+        function syncWithTopbarCredits() {
+            const topbarCredits = document.getElementById('topbarCredits');
+            if (topbarCredits) {
+                const creditsText = topbarCredits.textContent;
+                if (creditsText === 'Unlimited') {
+                    updateAllCreditDisplays(123654, true);
+                } else {
+                    const credits = parseInt(creditsText) || 0;
                     updateAllCreditDisplays(credits, true);
-                    
-                    // Update other user info
-                    document.getElementById('nickname').textContent = data.user.name || '';
-                    document.getElementById('email').textContent = data.user.email || '';
-                    
-                    // Load credit history
-                    loadCreditHistory();
                 }
-            } catch (error) {
-                console.error('Error loading user profile:', error);
             }
         }
 
-        // Initialize page - only call loadUserProfile once
-        document.addEventListener('DOMContentLoaded', () => {
-            // Load user data
-            loadUserProfile();
-            
-            // Switch to credits tab if specified in URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const tab = urlParams.get('tab');
-            if (tab) {
-                switchTab(tab);
-            }
-        });
-
-        // Listen for credit updates from topbar
-        window.addEventListener('creditsUpdated', (event) => {
-            if (event.detail && typeof event.detail.credits !== undefined) {
-                updateAllCreditDisplays(event.detail.credits);
-            }
-        });
-    </script>
-    <script>
-        // Get user data including hideCredits status
-        async function getUserData() {
-            try {
-                const response = await fetch('/api/auth/user', {
-                    credentials: 'include'
-                });
-                const userData = await response.json();
-                return userData;
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                return null;
-            }
-        }
-
+        // Initialize page with a single source of truth for user data
         async function initializePage() {
             try {
+                // First try to sync with topbar if it's already loaded
+                syncWithTopbarCredits();
+
                 const response = await fetch('/api/auth/user', {
                     credentials: 'include'
                 });
@@ -822,56 +780,30 @@
                 }
 
                 const userData = await response.json();
-                console.log('User data:', userData); // Debug log
                 
-                // Hide all credit-related elements if hideCredits is true
-                if (userData.credits === 456321) {
-                    console.log('Hiding credits UI'); // Debug log
+                if (userData.credits !== 456321) {
+                    const credits = userData.credits;
+                    updateAllCreditDisplays(credits, true);
                     
-                    // Hide credit tab button
+                    // Show credit elements
                     const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
-                    if (creditTab) {
-                        creditTab.style.display = 'none';
-                        console.log('Credit tab hidden');
-                    }
-                    
-                    // Hide credits content section
                     const creditsContent = document.getElementById('credits');
-                    if (creditsContent) {
-                        creditsContent.style.display = 'none';
-                        console.log('Credits content hidden');
-                    }
-                    
-                    // Hide upgrade/buy credits buttons
-                    document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
-                        if (btn) {
-                            btn.style.display = 'none';
-                            console.log('Buy credits button hidden');
-                        }
-                    });
-
-                    // Switch to personal info tab if credits tab was active
-                    if (creditsContent?.classList.contains('active')) {
-                        switchTab('personal');
-                        console.log('Switched to personal tab');
-                    }
-
-                    // Hide credits info in topbar
                     const creditsContainer = document.querySelector('.credits-container');
-                    if (creditsContainer) {
-                        creditsContainer.style.display = 'none';
-                        console.log('Credits container hidden');
-                    }
+                    
+                    if (creditTab) creditTab.style.display = 'block';
+                    if (creditsContent) creditsContent.style.display = 'block';
+                    if (creditsContainer) creditsContainer.style.display = 'flex';
+                }
 
-                    // Hide credits popup if it exists
-                    const creditsPopup = document.getElementById('creditsPopup');
-                    if (creditsPopup) {
-                        creditsPopup.style.display = 'none';
-                        console.log('Credits popup hidden');
-                    }
-                } else {
-                    // Show credits and update values if not hidden
-                    await loadUserData(userData);
+                // Update user info
+                const nameElement = document.getElementById('userName');
+                const emailElement = document.getElementById('userEmail');
+                if (nameElement) nameElement.textContent = userData.name || '';
+                if (emailElement) emailElement.textContent = userData.email || '';
+
+                // Load credit history if credits are not hidden
+                if (userData.credits !== 456321) {
+                    loadCreditHistory();
                 }
 
             } catch (error) {
@@ -879,44 +811,51 @@
             }
         }
 
-        async function loadUserData(userData) {
-            // Update user info
-            const nameElement = document.getElementById('userName');
-            const emailElement = document.getElementById('userEmail');
-            if (nameElement) nameElement.textContent = userData.name || '';
-            if (emailElement) emailElement.textContent = userData.email || '';
-
-            // Update credits if not hidden
-            if (userData.credits !== 456321) {
-                const totalCredits = document.getElementById('totalCredits');
-                if (totalCredits) {
-                    totalCredits.textContent = userData.credits === 123654 ? 'Unlimited' : userData.credits;
-                }
-
-                // Show credit elements
-                const creditTab = document.querySelector('button[onclick="switchTab(\'credits\')"]');
-                const creditsContent = document.getElementById('credits');
-                const creditsContainer = document.querySelector('.credits-container');
-                
-                if (creditTab) creditTab.style.display = 'block';
-                if (creditsContent) creditsContent.style.display = 'block';
-                if (creditsContainer) creditsContainer.style.display = 'flex';
-
-                // Show upgrade/buy credits buttons
-                document.querySelectorAll('.btn-upgrade, .buy-credits-btn').forEach(btn => {
-                    if (btn) btn.style.display = 'inline-block';
-                });
+        // Listen for credit updates from topbar
+        window.addEventListener('creditsUpdated', (event) => {
+            if (event.detail && typeof event.detail.credits !== 'undefined') {
+                updateAllCreditDisplays(event.detail.credits);
             }
+        });
 
-            // Update usage stats
-            const stickersGenerated = document.getElementById('stickersGenerated');
-            const collectionsCount = document.getElementById('collectionsCount');
-            if (stickersGenerated) stickersGenerated.textContent = userData.stickersGenerated || 0;
-            if (collectionsCount) collectionsCount.textContent = userData.collectionsCount || 0;
+        // Watch for changes in the topbar credits
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.target.id === 'topbarCredits') {
+                    syncWithTopbarCredits();
+                }
+            });
+        });
+
+        // Start observing once the topbar is loaded
+        function observeTopbarCredits() {
+            const topbarCredits = document.getElementById('topbarCredits');
+            if (topbarCredits) {
+                observer.observe(topbarCredits, { 
+                    characterData: true, 
+                    childList: true,
+                    subtree: true 
+                });
+                // Initial sync
+                syncWithTopbarCredits();
+            } else {
+                // If topbar isn't loaded yet, try again in a moment
+                setTimeout(observeTopbarCredits, 100);
+            }
         }
 
-        // Call initialize when page loads
-        document.addEventListener('DOMContentLoaded', initializePage);
+        // Initialize the page when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializePage();
+            observeTopbarCredits();
+            
+            // Switch to appropriate tab if specified in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab) {
+                switchTab(tab);
+            }
+        });
     </script>
     <script>
         // Load credit products configuration
