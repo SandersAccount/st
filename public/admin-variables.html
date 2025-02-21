@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Variables Management - Admin</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .variables-container {
+            max-width: 1200px;
+            margin: 80px auto 0;
+            padding: 0 20px;
+        }
+
+        .variables-header {
+            margin-bottom: 2rem;
+        }
+
+        .variables-header h1 {
+            font-size: 24px;
+            margin: 0;
+            color: #fff;
+        }
+
+        .variables-header p {
+            color: #666;
+            margin: 4px 0 0;
+        }
+
+        .category-section {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 2rem;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .category-header h2 {
+            font-size: 20px;
+            margin: 0;
+            color: #fff;
+            text-transform: capitalize;
+        }
+
+        .variable-item {
+            background: #242424;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 1rem;
+        }
+
+        .variable-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .variable-key {
+            font-size: 16px;
+            color: #ff1cf7;
+            margin: 0;
+        }
+
+        .variable-description {
+            color: #666;
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .variable-value {
+            width: 100%;
+            background: #333;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 8px;
+            color: #fff;
+            font-family: monospace;
+            margin-top: 8px;
+            min-height: 36px;
+        }
+
+        .variable-value.array {
+            min-height: 200px;
+        }
+
+        .save-button {
+            padding: 6px 12px;
+            background: #ff1cf7;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .save-button:hover {
+            background: #d600ce;
+        }
+
+        .save-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+
+        .last-updated {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .error-message {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .success-message {
+            color: #4caf50;
+            font-size: 14px;
+            margin-top: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="topbar"></div>
+
+    <div class="variables-container">
+        <div class="variables-header">
+            <h1>Variables Management</h1>
+            <p>Manage external configurations and variables</p>
+        </div>
+
+        <div id="variablesContent"></div>
+    </div>
+
+    <script>
+        // Load variables by category
+        async function loadVariables() {
+            try {
+                const response = await fetch('/api/variables', {
+                    credentials: 'include' // Add this to send cookies
+                });
+
+                if (response.status === 403) {
+                    console.error('Access denied. Please make sure you are logged in as an admin.');
+                    const container = document.getElementById('variablesContent');
+                    container.innerHTML = '<div class="alert alert-danger">Access denied. Please make sure you are logged in as an admin.</div>';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const variables = await response.json();
+                
+                if (!Array.isArray(variables)) {
+                    console.error('Expected array of variables but got:', variables);
+                    return;
+                }
+
+                const categories = {};
+                variables.forEach(variable => {
+                    if (!categories[variable.category]) {
+                        categories[variable.category] = [];
+                    }
+                    categories[variable.category].push(variable);
+                });
+
+                const container = document.getElementById('variablesContent');
+                container.innerHTML = ''; // Clear existing content
+
+                // Create sections for each category
+                Object.keys(categories).sort().forEach(category => {
+                    const categorySection = document.createElement('div');
+                    categorySection.className = 'category-section';
+                    categorySection.innerHTML = `
+                        <h2>${category}</h2>
+                        <div class="variables-grid"></div>
+                    `;
+
+                    const grid = categorySection.querySelector('.variables-grid');
+                    categories[category].forEach(variable => {
+                        grid.appendChild(createVariableItem(variable));
+                    });
+
+                    container.appendChild(categorySection);
+                });
+            } catch (error) {
+                console.error('Error loading variables:', error);
+                const container = document.getElementById('variablesContent');
+                container.innerHTML = '<div class="alert alert-danger">Error loading variables. Please try refreshing the page.</div>';
+            }
+        }
+
+        const defaultVariables = {
+            products: [
+                {
+                    "name": "StickerLab",
+                    "url": "https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b",
+                    "productId": "wso_svyh7b"
+                },
+                {
+                    "name": "Sticker Lab",
+                    "url": "https://warriorplus.com/o2/buy/byb3ct/ryyg67/pwpbsz",
+                    "productId": "wso_pwpbsz"
+                }
+            ],
+            creditProducts: [
+                {
+                    "credits": 100,
+                    "productId": "wso_h0pdbg",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/jvrcjg/vdcb4x/h0pdbg"
+                }
+            ]
+        };
+
+        function createVariableItem(variable) {
+            const isArray = Array.isArray(variable.value);
+            const isObject = typeof variable.value === 'object' && variable.value !== null && !isArray;
+            const value = isArray || isObject ? JSON.stringify(variable.value, null, 4) : variable.value;
+            const lastUpdated = new Date(variable.lastUpdated).toLocaleString();
+
+            const div = document.createElement('div');
+            div.className = 'variable-item';
+            div.innerHTML = `
+                <div class="variable-header">
+                    <h3 class="variable-key">${variable.key}</h3>
+                    <p class="variable-description">${variable.description}</p>
+                    <p class="last-updated">Last updated: ${lastUpdated}</p>
+                </div>
+                <textarea class="variable-value ${isArray || isObject ? 'array' : ''}" 
+                        rows="${isArray || isObject ? 10 : 1}">${value}</textarea>
+                <button class="save-button" disabled>Save</button>
+                <div class="error-message"></div>
+                <div class="success-message"></div>
+            `;
+
+            const textarea = div.querySelector('.variable-value');
+            const saveButton = div.querySelector('.save-button');
+            const errorMsg = div.querySelector('.error-message');
+            const successMsg = div.querySelector('.success-message');
+
+            textarea.addEventListener('input', () => {
+                saveButton.disabled = false;
+                errorMsg.style.display = 'none';
+                successMsg.style.display = 'none';
+            });
+
+            saveButton.addEventListener('click', async () => {
+                try {
+                    errorMsg.style.display = 'none';
+                    successMsg.style.display = 'none';
+
+                    let value = textarea.value.trim();
+                    if ((value.startsWith('{') && value.endsWith('}')) || 
+                        (value.startsWith('[') && value.endsWith(']'))) {
+                        try {
+                            value = JSON.parse(value);
+                        } catch (e) {
+                            throw new Error('Invalid JSON format. Please check your syntax.');
+                        }
+                    }
+
+                    const response = await fetch(`/api/variables/${variable._id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ value })
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Failed to save variable');
+                    }
+
+                    const result = await response.json();
+                    saveButton.disabled = true;
+                    successMsg.textContent = 'Saved successfully!';
+                    successMsg.style.display = 'block';
+                    
+                    const lastUpdated = div.querySelector('.last-updated');
+                    if (lastUpdated) {
+                        lastUpdated.textContent = `Last updated: ${new Date(result.lastUpdated).toLocaleString()}`;
+                    }
+                } catch (error) {
+                    errorMsg.textContent = error.message || 'Failed to save. Please try again.';
+                    errorMsg.style.display = 'block';
+                }
+            });
+
+            return div;
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVariables();
+        });
+    </script>
+</body>
+</html>
