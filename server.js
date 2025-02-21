@@ -252,12 +252,13 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
         const creditsVar = await Variable.findOne({ key: 'creditProducts' });
         
-        const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
+        const stickerLabProducts = stickerLabVar ? stickerLabVar.value : [];
+        const stickerLabProductIds = stickerLabProducts.map(p => p.productId);
         const creditProducts = creditsVar ? creditsVar.value : [];
 
         if (!user) {
             // Create a new user without a password if it's a StickerLab purchase
-            if (itemNumber === stickerLabProductId) {
+            if (stickerLabProductIds.includes(itemNumber)) {
                 user = new User({
                     email: buyerEmail,
                     name: buyerName,
@@ -277,7 +278,7 @@ app.post('/api/ipn/credits/notification', upload.none(), async (req, res) => {
             let creditsToAdd = 0;
             let productName = '';
 
-            if (itemNumber === stickerLabProductId) {
+            if (stickerLabProductIds.includes(itemNumber)) {
                 creditsToAdd = 100;
                 productName = 'StickerLab';
             } else {
