@@ -179,23 +179,24 @@ router.post('/credits/notification', async (req, res) => {
         
         // Get product IDs - check both with and without wso_ prefix
         const cleanItemNumber = itemNumber.replace('wso_', '');
-        const stickerLabProductId = stickerLabVar?.value?.productId?.replace('wso_', '') || 'svyh7b';
+        const stickerLabProducts = stickerLabVar?.value || [];
+        const stickerLabProductIds = stickerLabProducts.map(p => p.productId.replace('wso_', ''));
         const unlimitedProductId = unlimitedVar?.value?.productId?.replace('wso_', '') || 'kwc43t';
 
         console.log('Product validation:', {
             receivedProduct: itemNumber,
             cleanItemNumber,
-            stickerLabId: stickerLabProductId,
+            stickerLabIds: stickerLabProductIds,
             unlimitedId: unlimitedProductId,
             isUnlimited: cleanItemNumber === unlimitedProductId,
-            isStickerLab: cleanItemNumber === stickerLabProductId,
+            isStickerLab: stickerLabProductIds.includes(cleanItemNumber),
             unlimitedVarValue: unlimitedVar?.value
         });
 
         // Handle new user creation
         if (!user) {
             console.log('Creating new user...');
-            if (cleanItemNumber === unlimitedProductId || cleanItemNumber === stickerLabProductId) {
+            if (cleanItemNumber === unlimitedProductId || stickerLabProductIds.includes(cleanItemNumber)) {
                 user = new User({
                     email: buyerEmail,
                     name: buyerName,
@@ -218,7 +219,7 @@ router.post('/credits/notification', async (req, res) => {
                     subscription: user.subscription
                 });
             } else {
-                console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or', stickerLabProductId);
+                console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or one of:', stickerLabProductIds);
                 return res.status(400).json({ error: 'Unknown product' });
             }
         } else {
@@ -241,7 +242,7 @@ router.post('/credits/notification', async (req, res) => {
                     credits: user.credits,
                     subscription: user.subscription
                 });
-            } else if (cleanItemNumber === stickerLabProductId) {
+            } else if (stickerLabProductIds.includes(cleanItemNumber)) {
                 user.creditHistory.push({
                     product: 'StickerLab',
                     purchasedAt: new Date()
@@ -266,7 +267,7 @@ router.post('/credits/notification', async (req, res) => {
                     });
                     await user.save();
                 } else {
-                    console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or', stickerLabProductId);
+                    console.log('Unknown product:', itemNumber, 'Expected:', unlimitedProductId, 'or one of:', stickerLabProductIds);
                     return res.status(400).json({ error: 'Unknown product' });
                 }
             }
@@ -282,7 +283,7 @@ router.post('/credits/notification', async (req, res) => {
                 credits: user.credits,
                 subscription: user.subscription,
                 product: cleanItemNumber === unlimitedProductId ? 'StickerLab Unlimited' : 
-                        cleanItemNumber === stickerLabProductId ? 'StickerLab' : 'Credits'
+                        stickerLabProductIds.includes(cleanItemNumber) ? 'StickerLab' : 'Credits'
             });
 
             return res.status(200).json({
