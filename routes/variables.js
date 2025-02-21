@@ -77,13 +77,20 @@ export async function initializeVariables() {
         },
         {
             key: 'stickerLabProduct',
-            value: {
-                name: 'StickerLab',
-                url: 'https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b',
-                productId: 'wso_svyh7b'
-            },
+            value: [
+                {
+                    name: 'StickerLab',
+                    url: 'https://warriorplus.com/o2/buy/jvrcjg/l3lbqv/svyh7b',
+                    productId: 'wso_svyh7b'
+                },
+                {
+                    name: 'Sticker Lab',
+                    url: 'https://warriorplus.com/o2/buy/byb3ct/ryyg67/pwpbsz',
+                    productId: 'wso_pwpbsz'
+                }
+            ],
             category: 'products',
-            description: 'Main StickerLab product'
+            description: 'Main StickerLab products'
         },
         {
             key: 'unlimitedProduct',
@@ -116,9 +123,54 @@ export async function initializeVariables() {
             key: 'creditProducts',
             value: [
                 {
-                    credits: 100,
-                    productId: 'wso_h0pdbg',
-                    purchaseUrl: 'https://warriorplus.com/o2/buy/jvrcjg/vdcb4x/h0pdbg'
+                    "credits": 100,
+                    "productId": "wso_h0pdbg",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/nq362s/h0pdbg"
+                },
+                {
+                    "credits": 200,
+                    "productId": "wso_g9brry",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/n8fqmc/g9brry"
+                },
+                {
+                    "credits": 300,
+                    "productId": "wso_z073wm",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/q29dcv/z073wm"
+                },
+                {
+                    "credits": 400,
+                    "productId": "wso_k6bx56",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/gcyhkd/k6bx56"
+                },
+                {
+                    "credits": 500,
+                    "productId": "wso_mnn103",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/br2gc9/mnn103"
+                },
+                {
+                    "credits": 600,
+                    "productId": "wso_p6t554",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/zky921/p6t554"
+                },
+                {
+                    "credits": 700,
+                    "productId": "wso_pc7kvg",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/b1n1n7/pc7kvg"
+                },
+                {
+                    "credits": 800,
+                    "productId": "wso_lzd4gh",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/vshmzj/lzd4gh"
+                },
+                {
+                    "credits": 900,
+                    "productId": "wso_yhcpx7",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/xm8rys/yhcpx7"
+                },
+                {
+                    "credits": 1000,
+                    "productId": "wso_n7w5lr",
+                    "purchaseUrl": "https://warriorplus.com/o2/buy/wxczrw/m6p3y2/n7w5lr"
                 }
             ],
             category: 'products',
