@@ -58,11 +58,15 @@ router.post('/notification', async (req, res) => {
         
         // Get StickerLab product info
         const stickerLabVar = await Variable.findOne({ key: 'stickerLabProduct' });
-        const stickerLabProductId = stickerLabVar ? stickerLabVar.value.productId : 'wso_svyh7b';
+        const stickerLabProducts = stickerLabVar?.value || [];
+        const stickerLabProductIds = stickerLabProducts.map(p => p.productId);
+        
+        // Check if the itemNumber matches any of the StickerLab product IDs
+        const isStickerLabProduct = stickerLabProductIds.includes(itemNumber);
 
         if (!user) {
             // Create a new user without a password
-            if (itemNumber === stickerLabProductId) {
+            if (isStickerLabProduct) {
                 user = new User({
                     email: buyerEmail,
                     name: buyerName,
@@ -74,13 +78,13 @@ router.post('/notification', async (req, res) => {
             }
         } else {
             // Update existing user with purchase information
-            if (itemNumber === stickerLabProductId) {
+            if (isStickerLabProduct) {
                 user.creditHistory.push({ product: 'StickerLab', purchasedAt: new Date() });
             }
         }
 
         // Handle credit assignment
-        if (itemNumber === stickerLabProductId) {
+        if (isStickerLabProduct) {
             // Logic for handling StickerLab purchase
             user.credits = (user.credits || 0) + 250;
             console.log('User gained access to StickerLab and received 100 credits:', user.email);
