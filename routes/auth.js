@@ -25,7 +25,7 @@ router.post('/register', [
         const stickerLabPurchase = await User.findOne({ email: email });
         console.log('Found user:', stickerLabPurchase);
         
-        let initialCredits = 0; // Default credits for new users
+        let initialCredits = 5; // Default credits for new users
         let creditHistory = [];
 
         if (stickerLabPurchase) {
